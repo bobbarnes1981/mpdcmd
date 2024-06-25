@@ -1,16 +1,103 @@
 import musicpd
+import time
 import wx
+from threading import *
+
+EVT_SONG_STATUS_ID = wx.Window.NewControlId()
+
+def EVT_SONG_STATUS(win, func):
+    win.Connect(-1, -1, EVT_SONG_STATUS_ID, func)
+
+class SongStatusEvent(wx.PyEvent):
+    def __init__(self, data):
+        wx.PyEvent.__init__(self)
+        self.SetEventType(EVT_SONG_STATUS_ID)
+        self.data = data
+
+class SongStatusWorker(Thread):
+    def __init__(self, notify_window, client):
+        Thread.__init__(self)
+        self._notify_window = notify_window
+        self.client = client
+        self._want_abort = 0
+        self.start()
+    def run(self):
+        while not self._want_abort:
+            status = self.client.status()
+            wx.PostEvent(self._notify_window, SongStatusEvent(status))
+            time.sleep(1)
+    def abort(self):
+        self._want_abort = 1
 
 class MpdCmdFrame(wx.Frame):
     def __init__(self, *args, **kw):
         super(MpdCmdFrame, self).__init__(*args, **kw)
+        self.client = None
+        self.current_songid = None
+        self.current_playlist = None
 
-        panel = wx.Panel(self)
+        self.main_panel = wx.Panel(self)
 
-        notebook = wx.Notebook(panel, size=(640,480)) # TODO
+        self.main_sizer = wx.BoxSizer(wx.VERTICAL)
+        
+        nb = self.makeNotebook()
+        self.main_sizer.Add(nb, 1, wx.EXPAND|wx.ALL, 1)
 
-        self.currentPlaylistPanel = wx.Panel(notebook)
-        self.currentPlaylistCtrl = wx.ListCtrl(self.currentPlaylistPanel, size=(600,400))
+        self.currentTrackText = wx.StaticText(self.main_panel, label="Not Playing")
+        self.main_sizer.Add(self.currentTrackText, 0, wx.EXPAND|wx.ALL, 1)
+        
+        self.currentTrackTime = wx.StaticText(self.main_panel, label="0/0")
+        self.main_sizer.Add(self.currentTrackTime, 0, wx.EXPAND|wx.ALL, 1)
+
+        tr = self.makeTransport()
+        self.main_sizer.Add(tr, 0, wx.EXPAND|wx.ALL, 1)
+
+        self.main_panel.SetSizer(self.main_sizer)
+
+        self.makeMenuBar()
+
+        self.CreateStatusBar()
+
+        self.populatePlaylist()
+        self.populateAlbums()
+        self.OnVolChanged(None)
+        self.updateTitle()
+
+        EVT_SONG_STATUS(self, self.OnSongStatus)
+        self.worker = SongStatusWorker(self, self.getClient())
+
+    def updateTitle(self):
+        cli = self.getClient()
+        stats = cli.stats()
+        self.Title = "MPDCMD Artists %s Albums %s Songs %s" % (stats['artists'], stats['albums'], stats['songs'])
+    def makeTransport(self):
+        transport = wx.Panel(self.main_panel)
+        
+        tr_hori = wx.BoxSizer(wx.HORIZONTAL)
+
+        prevButton = wx.Button(transport, label="Prev")
+        self.Bind(wx.EVT_BUTTON, self.OnPrev, prevButton)
+        tr_hori.Add(prevButton, 0, wx.EXPAND|wx.ALL, 1)
+        
+        playButton = wx.Button(transport, label="Play/Pause")
+        self.Bind(wx.EVT_BUTTON, self.OnPlay, playButton)
+        tr_hori.Add(playButton, 0, wx.EXPAND|wx.ALL, 1)
+        
+        nextButton = wx.Button(transport, label="Next")
+        self.Bind(wx.EVT_BUTTON, self.OnNext, nextButton)
+        tr_hori.Add(nextButton, 0, wx.EXPAND|wx.ALL, 1)
+
+        self.currentVol = wx.Slider(transport, minValue=0, maxValue=100, style=wx.SL_VALUE_LABEL)
+        self.Bind(wx.EVT_SCROLL_CHANGED, self.OnVolChanged, self.currentVol)
+        tr_hori.Add(self.currentVol, 0, wx.EXPAND|wx.ALL, 1)
+
+        transport.SetSizer(tr_hori)
+
+        return transport
+    def makeNotebook(self):
+        notebook = wx.Notebook(self.main_panel)
+
+        self.currentPlaylistCtrl = wx.ListCtrl(notebook)
         self.currentPlaylistCtrl.SetWindowStyleFlag(wx.LC_REPORT)
         self.currentPlaylistCtrl.InsertColumn(0, "id")
         self.currentPlaylistCtrl.InsertColumn(1, "pos")
@@ -20,61 +107,21 @@ class MpdCmdFrame(wx.Frame):
         self.currentPlaylistCtrl.InsertColumn(5, "Title")
         self.currentPlaylistCtrl.SetColumnsOrder([0,1,2,3,4,5])
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnCurrentSelect, self.currentPlaylistCtrl)
-        notebook.AddPage(self.currentPlaylistPanel, "Current")
+        notebook.AddPage(self.currentPlaylistCtrl, "Current")
 
-        self.albumsPanel = wx.Panel(notebook)
-        self.albumCtrl = wx.ListCtrl(self.albumsPanel, size=(600,400))
+        self.albumCtrl = wx.ListCtrl(notebook)
         self.albumCtrl.SetWindowStyleFlag(wx.LC_REPORT)
         self.albumCtrl.InsertColumn(0, "Album")
+        self.albumCtrl.InsertColumn(1, "Artist")
+        self.albumCtrl.InsertColumn(2, "Tracks")
+        self.albumCtrl.SetColumnsOrder([0,1,2])
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnAlbumSelect, self.albumCtrl)
-        notebook.AddPage(self.albumsPanel, "Albums")
+        notebook.AddPage(self.albumCtrl, "Albums")
 
-        self.currentTrackText = wx.StaticText(panel, label="")
-
-        self.currentVolText = wx.StaticText(panel, label="0")
-
-        prevButton = wx.Button(panel, label="Prev")
-        self.Bind(wx.EVT_BUTTON, self.OnPrev, prevButton)
-        
-        playButton = wx.Button(panel, label="Play/Pause")
-        self.Bind(wx.EVT_BUTTON, self.OnPlay, playButton)
-        
-        nextButton = wx.Button(panel, label="Next")
-        self.Bind(wx.EVT_BUTTON, self.OnNext, nextButton)
-        
-        volUpButton = wx.Button(panel, label="+")
-        self.Bind(wx.EVT_BUTTON, self.OnVolUp, volUpButton)
-        
-        volDnButton = wx.Button(panel, label="-")
-        self.Bind(wx.EVT_BUTTON, self.OnVolDn, volDnButton)
-
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        
-        sizer.Add(notebook, wx.SizerFlags().Border(wx.TOP|wx.LEFT, 25))
-
-        sizer.Add(self.currentTrackText, wx.SizerFlags().Border(wx.TOP|wx.LEFT, 25))
-        sizer.Add(prevButton, wx.SizerFlags().Border(wx.TOP|wx.LEFT, 25))
-        sizer.Add(playButton, wx.SizerFlags().Border(wx.TOP|wx.LEFT, 25))
-        sizer.Add(nextButton, wx.SizerFlags().Border(wx.TOP|wx.LEFT, 25))
-        sizer.Add(volUpButton, wx.SizerFlags().Border(wx.TOP|wx.LEFT, 25))
-        sizer.Add(self.currentVolText, wx.SizerFlags().Border(wx.TOP|wx.LEFT, 25))
-        sizer.Add(volDnButton, wx.SizerFlags().Border(wx.TOP|wx.LEFT, 25))
-
-        panel.SetSizer(sizer)
-
-        self.makeMenuBar()
-
-        self.CreateStatusBar()
-        self.SetStatusText("some status bar text")
-
-        self.populatePlaylist()
-        self.adjVolume(0)
-        self.populateTrack()
-        self.populateAlbums()
+        return notebook
     def makeMenuBar(self):
         fileMenu = wx.Menu()
-        helloItem = fileMenu.Append(-1, "&Hello...\tCtrl-H",
-                                    "This is a help menu item")
+        prefItem = fileMenu.Append(-1, "&Preferences", "Configure preferences")
         fileMenu.AppendSeparator()
         exitItem = fileMenu.Append(wx.ID_EXIT)
         
@@ -86,48 +133,66 @@ class MpdCmdFrame(wx.Frame):
         menuBar.Append(helpMenu, "&Help")
         self.SetMenuBar(menuBar)
 
-        self.Bind(wx.EVT_MENU, self.OnHello, helloItem)
+        self.Bind(wx.EVT_MENU, self.OnPref, prefItem)
         self.Bind(wx.EVT_MENU, self.OnExit, exitItem)
         self.Bind(wx.EVT_MENU, self.OnAbout, aboutItem)
+    def secondsToTime(self, seconds: float):
+        return "%d:%d" % (seconds//60, seconds%60)
     def populatePlaylist(self):
         cli = self.getClient()
         playlist = cli.playlistid()
+        self.currentPlaylistCtrl.DeleteAllItems()
         for song in playlist:
             self.currentPlaylistCtrl.Append([song['id'],song['pos'],song['album'],song['artist'],song['track'],song['title']])
-        cli.disconnect()
-    def populateTrack(self):
+    def populateTrack(self, status):
         cli = self.getClient()
-        status = cli.status()
         current_song = cli.playlistid(status['songid'])[0]
-        self.currentTrackText.SetLabel("%s, %s, %s, %s, %s, %s, %s, %s" % (current_song['file'], current_song['format'], current_song['artist'], current_song['album'], current_song['title'], current_song['track'], current_song['duration'], current_song['pos']))
-        cli.disconnect()
+        self.currentTrackText.SetLabel("%s. %s - %s (%s)" % ( current_song['track'], current_song['artist'], current_song['title'], current_song['album']))
+        self.SetStatusText("%s %s" % (current_song['file'], current_song['format']))
+    def populateTime(self, status):
+        elapsed = 0
+        if 'elapsed' in status.keys():
+            elapsed = self.secondsToTime(float(status['elapsed']))
+        duration = 0
+        if 'duration' in status.keys():
+            duration = self.secondsToTime(float(status['duration']))
+        self.currentTrackTime.SetLabel("%s/%s" % (elapsed, duration))
     def populateAlbums(self):
         cli = self.getClient()
         albums = cli.list('AlbumSort')
         for album in albums:
-            self.albumCtrl.Append([album])
-        cli.disconnect()
-    def adjVolume(self, adj):
+            tracks = cli.find('(Album == "%s")' % album)
+            self.albumCtrl.Append([album, tracks[0]['artist'], len(tracks)])
+    def OnSongStatus(self, event):
+        self.populateTime(event.data)
+        if 'songid' not in event.data.keys() or 'playlist' not in event.data.keys():
+            return
+        if event.data['songid'] == self.current_songid and event.data['playlist'] == self.current_playlist:
+            return
+        self.current_songid = event.data['songid']
+        self.current_playlist = event.data['playlist']
+        self.populateTrack(event.data)
+    def OnVolChanged(self, event):
         cli = self.getClient()
-        vol = int(cli.getvol()['volume'])
-        if adj != 0:
-            vol = vol + adj
+        if event != None:
+            vol = event.GetInt()
             cli.setvol(vol)
-        self.currentVolText.SetLabel(str(vol))
-        cli.disconnect()
+        else:
+            vol = int(cli.getvol()['volume'])
+        self.currentVol.SetValue(vol)
     def OnExit(self, event):
+        if self.client != None:
+            self.client.disconnect()
+        if self.worker != None:
+            self.worker.abort()
         self.Close(True)
-    def OnHello(self, event):
-        wx.MessageBox("Hello messagebox")
+    def OnPref(self, event):
+        wx.MessageBox("TODO: show preferences window with ip and port options")
     def OnAbout(self, event):
-        wx.MessageBox("Some text",
-                      "Title",
-                      wx.OK|wx.ICON_INFORMATION)
+        wx.MessageBox("Some text", "Title", wx.OK|wx.ICON_INFORMATION)
     def OnPrev(self, event):
         cli = self.getClient()
         cli.previous()
-        cli.disconnect()
-        self.populateTrack()
     def OnPlay(self, event):
         cli = self.getClient()
         status = cli.status()
@@ -135,68 +200,30 @@ class MpdCmdFrame(wx.Frame):
             cli.pause()
         else:
             cli.play()
-        cli.disconnect()
-        self.populateTrack()
     def OnNext(self, event):
         cli = self.getClient()
         cli.next()
-        cli.disconnect()
-        self.populateTrack()
-    def OnVolUp(self, event):
-        self.adjVolume(+5)
-    def OnVolDn(self, event):
-        self.adjVolume(-5)
     def OnAlbumSelect(self, event):
-
         album_name = self.albumCtrl.GetItem(self.albumCtrl.GetFirstSelected(), col=0).GetText()
-        # clear queue, add all to queue, play
-
         cli = self.getClient()
-        tracks = cli.find("(Album == '%s')" % album_name)
-        print(tracks)
-        cli.disconnect()
-
+        cli.clear()
+        cli.findadd('(Album == "%s")' % album_name)
+        cli.play()
+        self.populatePlaylist()
     def OnCurrentSelect(self, event):
         cli = self.getClient()
         cli.play(int(self.currentPlaylistCtrl.GetItem(self.currentPlaylistCtrl.GetFirstSelected(), col=1).GetText()))
-        cli.disconnect()
-        self.populateTrack()
     def getClient(self):
-        cli = musicpd.MPDClient()
-        cli.connect('192.168.1.10', '6600')
-        return cli
+        if self.client == None:
+            self.client = musicpd.MPDClient()
+            self.client.connect('192.168.1.10', '6600')
+        return self.client
 
 def main():
     app = wx.App()
     frame = MpdCmdFrame(None, title='MPDCMD', size=(640,480))
     frame.Show()
     app.MainLoop()
-
-    #stats = cli.stats()
-    #print('Artists %s' % stats['artists'])
-    #print('Albums %s' % stats['albums'])
-    #print('Songs %s' % stats['songs'])
-
-    #status = cli.status()
-    #print('volume %s' % status['volume'])
-    #print('playlist %s' % status['playlist'])
-    #print('playlistlength %s' % status['playlistlength'])
-    #print('state %s' % status['state'])
-    #print('song %s' % status['song'])
-    #print('songid %s' % status['songid'])
-    #if 'nextsong' in status.keys():
-    #    print('nextsong %s' % status['nextsong'])
-    #    print('nextsongid %s' % status['nextsongid'])
-    #print('elapsed %s' % status['elapsed'])
-    #print('duration %s' % status['duration'])
-
-    #playlists = cli.listplaylists()
-    #print(playlists)
-
-    #all = cli.listall()
-    #print(all)
-
-    #cli.disconnect()
 
 if __name__ == '__main__':
     main()
