@@ -31,13 +31,13 @@ class MpdCmdFrame(wx.Frame):
         self.main_sizer.Add(nb, 1, wx.EXPAND|wx.ALL, 1)
         
         self.currentSongText = wx.StaticText(self.main_panel, label="Not Playing")
-        self.main_sizer.Add(self.currentSongText, 0, wx.EXPAND|wx.ALL, 1)
+        self.main_sizer.Add(self.currentSongText, 0, wx.EXPAND|wx.LEFT|wx.RIGHT, 8)
         
         self.currentSongTime = wx.StaticText(self.main_panel, label="00:00/00:00")
-        self.main_sizer.Add(self.currentSongTime, 0, wx.EXPAND|wx.ALL, 1)
+        self.main_sizer.Add(self.currentSongTime, 0, wx.EXPAND|wx.LEFT|wx.RIGHT, 8)
         
         tr = self.makeTransport()
-        self.main_sizer.Add(tr, 0, wx.EXPAND|wx.ALL, 1)
+        self.main_sizer.Add(tr, 0, wx.EXPAND|wx.ALL, 5)
 
         self.main_panel.SetSizer(self.main_sizer)
         
