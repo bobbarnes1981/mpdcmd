@@ -33,7 +33,7 @@ class MpdCmdFrame(wx.Frame):
         self.currentSongText = wx.StaticText(self.main_panel, label="Not Playing")
         self.main_sizer.Add(self.currentSongText, 0, wx.EXPAND|wx.ALL, 1)
         
-        self.currentSongTime = wx.StaticText(self.main_panel, label="0/0")
+        self.currentSongTime = wx.StaticText(self.main_panel, label="00:00/00:00")
         self.main_sizer.Add(self.currentSongTime, 0, wx.EXPAND|wx.ALL, 1)
         
         tr = self.makeTransport()
@@ -166,22 +166,22 @@ class MpdCmdFrame(wx.Frame):
 
         self.queueCtrl = wx.ListCtrl(notebook)
         self.queueCtrl.SetWindowStyleFlag(wx.LC_REPORT)
-        self.queueCtrl.InsertColumn(0, "playing")
-        self.queueCtrl.InsertColumn(1, "id")
-        self.queueCtrl.InsertColumn(2, "pos")
-        self.queueCtrl.InsertColumn(3, "Album")
-        self.queueCtrl.InsertColumn(4, "Artist")
-        self.queueCtrl.InsertColumn(5, "Track")
-        self.queueCtrl.InsertColumn(6, "Title")
+        self.queueCtrl.InsertColumn(0, "", width=20)
+        self.queueCtrl.InsertColumn(1, "Id", width=50)
+        self.queueCtrl.InsertColumn(2, "Position", width=70)
+        self.queueCtrl.InsertColumn(3, "Album", width=150)
+        self.queueCtrl.InsertColumn(4, "Artist", width=100)
+        self.queueCtrl.InsertColumn(5, "Track", width=50)
+        self.queueCtrl.InsertColumn(6, "Title", width=200)
         self.queueCtrl.SetColumnsOrder([0,1,2,3,4,5,6])
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnQueueSelect, self.queueCtrl)
-        notebook.AddPage(self.queueCtrl, "Current")
+        notebook.AddPage(self.queueCtrl, "Queue")
 
         self.albumCtrl = wx.ListCtrl(notebook)
         self.albumCtrl.SetWindowStyleFlag(wx.LC_REPORT)
-        self.albumCtrl.InsertColumn(0, "Album")
-        self.albumCtrl.InsertColumn(1, "Artist")
-        self.albumCtrl.InsertColumn(2, "Tracks")
+        self.albumCtrl.InsertColumn(0, "Album", width=150)
+        self.albumCtrl.InsertColumn(1, "Artist", width=100)
+        self.albumCtrl.InsertColumn(2, "Tracks", width=50)
         self.albumCtrl.SetColumnsOrder([0,1,2])
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnAlbumSelect, self.albumCtrl)
         notebook.AddPage(self.albumCtrl, "Albums")
@@ -245,7 +245,12 @@ class MpdCmdFrame(wx.Frame):
         albums = cli.list('AlbumSort')
         for album in albums:
             tracks = cli.find('(Album == "%s")' % album)
-            self.albumCtrl.Append([album, tracks[0]['artist'], len(tracks)])
+            is_various = False
+            for t in range(1, len(tracks)):
+                if tracks[t-1]['artist'] != tracks[t]['artist']:
+                    is_various = True
+                    break
+            self.albumCtrl.Append([album, 'VA' if is_various else tracks[0]['artist'], len(tracks)])
         cli.disconnect()
 
     """Play the current song in queue"""
