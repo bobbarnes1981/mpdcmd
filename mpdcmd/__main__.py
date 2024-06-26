@@ -137,7 +137,7 @@ class MpdCmdFrame(wx.Frame):
 
     """Update the title text"""
     def updateTitle(self):
-        self.Title = "MPDCMD Artists %s Albums %s Songs %s" % (self.stats['artists'], self.stats['albums'], self.stats['songs'])
+        self.Title = "MPDCMD [Artists %s Albums %s Songs %s]" % (self.stats['artists'], self.stats['albums'], self.stats['songs'])
     """Update the volume value"""
     def updateVolume(self):
         self.currentVol.SetValue(int(self.status['volume']))
@@ -302,6 +302,9 @@ class MpdCmdFrame(wx.Frame):
 def main():
     app = wx.App()
     frame = MpdCmdFrame(None, title='MPDCMD', size=(640,480))
+    icon = wx.Icon()
+    icon.LoadFile(".\mpdcmd\icons\icon.png", type=wx.BITMAP_TYPE_PNG)
+    frame.SetIcon(icon)
     frame.Show()
     app.MainLoop()
 
