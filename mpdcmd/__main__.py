@@ -1,6 +1,5 @@
 import logging
 import musicpd
-import time
 import wx
 from threading import *
 
@@ -129,7 +128,7 @@ class MpdCmdFrame(wx.Frame):
         self.refreshStatus()
     """Queue item selected"""
     def OnQueueSelect(self, event):
-        queue_pos = int(self.queueCtrl.GetItem(self.queueCtrl.GetFirstSelected(), col=1).GetText())
+        queue_pos = int(self.queueCtrl.GetItem(self.queueCtrl.GetFirstSelected(), col=2).GetText())
         self.logger.info("Queue item selected %s", queue_pos)
         cli = self.getClient()
         cli.play(queue_pos)
@@ -152,6 +151,12 @@ class MpdCmdFrame(wx.Frame):
         self.currentSongTime.SetLabel("%s/%s" % (elapsed, duration))
     """Update current song"""
     def updateCurrentSong(self):
+        for s in range(0, self.queueCtrl.GetItemCount()):
+            pos = self.queueCtrl.GetItem(s, col=2).GetText()
+            if self.current_song['pos'] == str(pos):
+                self.queueCtrl.SetItem(s, 0, '>')
+            else:
+                self.queueCtrl.SetItem(s, 0, ' ')
         self.currentSongText.SetLabel("%s. %s - %s (%s)" % (self.current_song['track'], self.current_song['artist'], self.current_song['title'], self.current_song['album']))
         self.SetStatusText("%s %s" % (self.current_song['file'], self.current_song['format']))
 
@@ -161,13 +166,14 @@ class MpdCmdFrame(wx.Frame):
 
         self.queueCtrl = wx.ListCtrl(notebook)
         self.queueCtrl.SetWindowStyleFlag(wx.LC_REPORT)
-        self.queueCtrl.InsertColumn(0, "id")
-        self.queueCtrl.InsertColumn(1, "pos")
-        self.queueCtrl.InsertColumn(2, "Album")
-        self.queueCtrl.InsertColumn(3, "Artist")
-        self.queueCtrl.InsertColumn(4, "Track")
-        self.queueCtrl.InsertColumn(5, "Title")
-        self.queueCtrl.SetColumnsOrder([0,1,2,3,4,5])
+        self.queueCtrl.InsertColumn(0, "playing")
+        self.queueCtrl.InsertColumn(1, "id")
+        self.queueCtrl.InsertColumn(2, "pos")
+        self.queueCtrl.InsertColumn(3, "Album")
+        self.queueCtrl.InsertColumn(4, "Artist")
+        self.queueCtrl.InsertColumn(5, "Track")
+        self.queueCtrl.InsertColumn(6, "Title")
+        self.queueCtrl.SetColumnsOrder([0,1,2,3,4,5,6])
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnQueueSelect, self.queueCtrl)
         notebook.AddPage(self.queueCtrl, "Current")
 
@@ -231,7 +237,7 @@ class MpdCmdFrame(wx.Frame):
         cli.disconnect()
         self.queueCtrl.DeleteAllItems()
         for song in playlist:
-            self.queueCtrl.Append([song['id'],song['pos'],song['album'],song['artist'],song['track'],song['title']])
+            self.queueCtrl.Append(['',song['id'],song['pos'],song['album'],song['artist'],song['track'],song['title']])
     """Populate the albums list control"""
     def populateAlbums(self):
         self.logger.debug("populateAlbums()")
@@ -303,7 +309,7 @@ def main():
     app = wx.App()
     frame = MpdCmdFrame(None, title='MPDCMD', size=(640,480))
     icon = wx.Icon()
-    icon.LoadFile(".\mpdcmd\icons\icon.png", type=wx.BITMAP_TYPE_PNG)
+    icon.LoadFile(".\\mpdcmd\\icons\\icon.png", type=wx.BITMAP_TYPE_PNG)
     frame.SetIcon(icon)
     frame.Show()
     app.MainLoop()
