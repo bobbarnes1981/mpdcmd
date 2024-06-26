@@ -1,6 +1,7 @@
 import logging
 import musicpd
 import wx
+import wx.adv
 from threading import *
 
 class MpdCmdFrame(wx.Frame):
@@ -40,7 +41,7 @@ class MpdCmdFrame(wx.Frame):
         self.main_sizer.Add(tr, 0, wx.EXPAND|wx.ALL, 5)
 
         self.main_panel.SetSizer(self.main_sizer)
-        
+
         self.makeMenuBar()
         self.CreateStatusBar()
 
@@ -164,6 +165,7 @@ class MpdCmdFrame(wx.Frame):
                 self.queueCtrl.SetItem(s, 0, '>')
             else:
                 self.queueCtrl.SetItem(s, 0, ' ')
+        wx.adv.NotificationMessage("MPDCMD", "%s. %s - %s\r\n%s" % (self.current_song['track'], self.current_song['artist'], self.current_song['title'], self.current_song['album'])).Show(5)
         self.currentSongText.SetLabel("%s. %s - %s (%s)" % (self.current_song['track'], self.current_song['artist'], self.current_song['title'], self.current_song['album']))
         self.SetStatusText("%s %s" % (self.current_song['file'], self.current_song['format']))
 
