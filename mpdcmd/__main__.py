@@ -9,7 +9,7 @@ class MpdCmdFrame(wx.Frame):
     """"""
     def __init__(self, *args, **kw):
         super(MpdCmdFrame, self).__init__(*args, **kw)
-        logging.basicConfig(level=logging.DEBUG)
+        logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger("MPDCMD")
 
         # init client
@@ -101,12 +101,12 @@ class MpdCmdFrame(wx.Frame):
     """MPD stats changed"""
     def OnStatsChanged(self, stats):
         self.stats = stats
-        self.logger.debug("Stats changed %s" % self.stats)
+        self.logger.info("Stats changed %s" % self.stats)
         self.updateTitle()
     """MPD status changed"""
     def OnStatusChanged(self, status):
         self.status = status
-        self.logger.debug("Status changed %s" % self.status)
+        self.logger.info("Status changed %s" % self.status)
         self.current_elapsed = float(self.status['elapsed'])
         self.updateVolume()
         self.updateSongTime()
@@ -114,12 +114,12 @@ class MpdCmdFrame(wx.Frame):
     """MPD current song changed"""
     def OnCurrentSongChanged(self, current_song):
         self.current_song = current_song
-        self.logger.debug("Song changed %s" % self.current_song)
+        self.logger.info("Song changed %s" % self.current_song)
         self.updateCurrentSong()
     """Album item selected"""
     def OnAlbumSelect(self, event):
         album_name = self.albumCtrl.GetItem(self.albumCtrl.GetFirstSelected(), col=0).GetText()
-        self.logger.debug("Album selected %s" % album_name)
+        self.logger.info("Album selected %s" % album_name)
         cli = self.getClient()
         cli.clear()
         cli.findadd('(Album == "%s")' % album_name)
@@ -130,7 +130,7 @@ class MpdCmdFrame(wx.Frame):
     """Queue item selected"""
     def OnQueueSelect(self, event):
         queue_pos = int(self.queueCtrl.GetItem(self.queueCtrl.GetFirstSelected(), col=1).GetText())
-        self.logger.debug("Queue item selected %s", queue_pos)
+        self.logger.info("Queue item selected %s", queue_pos)
         cli = self.getClient()
         cli.play(queue_pos)
         cli.disconnect()
@@ -250,24 +250,28 @@ class MpdCmdFrame(wx.Frame):
         cli.disconnect()
     """Pause playing the current song"""
     def pause(self):
+        self.logger.debug("pause()")
         cli = self.getClient()
         cli.pause()
         cli.disconnect()
 
     """Volume slider changed"""
     def OnVolChanged(self, event):
+        self.logger.debug("OnVolChanged()")
         cli = self.getClient()
         vol = int(cli.getvol()['volume'])
         cli.disconnect()
         self.currentVol.SetValue(vol)
     """Previous clicked"""
     def OnPrev(self, event):
+        self.logger.debug("OnPrev()")
         cli = self.getClient()
         cli.previous()
         cli.disconnect()
         self.refreshStatus()
     """Play/pause clicked"""
     def OnPlay(self, event):
+        self.logger.debug("OnPlay()")
         self.refreshStatus()
         if self.status['state'] == "play":
             self.pause()
@@ -276,6 +280,7 @@ class MpdCmdFrame(wx.Frame):
         self.refreshStatus()
     """Next clicked"""
     def OnNext(self, event):
+        self.logger.debug("OnNext()")
         cli = self.getClient()
         cli.next()
         cli.disconnect()
@@ -283,12 +288,15 @@ class MpdCmdFrame(wx.Frame):
 
     """Preferences menu selected"""
     def OnPref(self, event):
+        self.logger.debug("OnPref()")
         wx.MessageBox("TODO: show preferences window with ip and port options")
     """About menu selected"""
     def OnAbout(self, event):
+        self.logger.debug("OnAbout()")
         wx.MessageBox("Some text", "Title", wx.OK|wx.ICON_INFORMATION)
     """Exit menu selected"""
     def OnExit(self, event):
+        self.logger.debug("OnExit()")
         self.Close(True)
 
 def main():
