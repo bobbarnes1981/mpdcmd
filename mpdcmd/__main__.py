@@ -107,6 +107,7 @@ class MpdCmdFrame(wx.Frame):
         self.status = status
         self.logger.info("Status changed %s" % self.status)
         self.current_elapsed = float(self.status['elapsed'])
+        self.updatePlayPause()
         self.updateVolume()
         self.updateSongTime()
         self.refreshCurrentSong()
@@ -137,6 +138,12 @@ class MpdCmdFrame(wx.Frame):
     """Update the title text"""
     def updateTitle(self):
         self.Title = "MPDCMD [Artists %s Albums %s Songs %s]" % (self.stats['artists'], self.stats['albums'], self.stats['songs'])
+    """"""
+    def updatePlayPause(self):
+        if self.status['state'] == 'play':
+            self.playButton.SetLabel("Pause")
+        else:
+            self.playButton.SetLabel("Play")
     """Update the volume value"""
     def updateVolume(self):
         self.currentVol.SetValue(int(self.status['volume']))
@@ -196,9 +203,9 @@ class MpdCmdFrame(wx.Frame):
         self.Bind(wx.EVT_BUTTON, self.OnPrev, prevButton)
         tr_hori.Add(prevButton, 0, wx.EXPAND|wx.ALL, 1)
 
-        playButton = wx.Button(transport, label="Play/Pause")
-        self.Bind(wx.EVT_BUTTON, self.OnPlay, playButton)
-        tr_hori.Add(playButton, 0, wx.EXPAND|wx.ALL, 1)
+        self.playButton = wx.Button(transport, label="")
+        self.Bind(wx.EVT_BUTTON, self.OnPlay, self.playButton)
+        tr_hori.Add(self.playButton, 0, wx.EXPAND|wx.ALL, 1)
 
         nextButton = wx.Button(transport, label="Next")
         self.Bind(wx.EVT_BUTTON, self.OnNext, nextButton)
