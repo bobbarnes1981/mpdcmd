@@ -311,7 +311,6 @@ class MpdCmdFrame(wx.Frame):
 
         # init mpd
         self.mpd = MpdController(self, "192.168.1.10", "6600") # TODO: load from config
-        #EVT_MPD_CONNECTION(self, self.OnConnectionChanged)
         self.Bind(EVT_MPD_CONNECTION, self.OnConnectionChanged)
         self.Bind(EVT_MPD_STATS, self.OnStatsChanged)
         self.Bind(EVT_MPD_STATUS, self.OnStatusChanged)
