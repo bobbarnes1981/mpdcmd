@@ -7,7 +7,7 @@ import wx
 import wx.adv
 from threading import *
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.WARN)
 
 mcEVT_MPD_CONNECTION = wx.NewEventType()
 EVT_MPD_CONNECTION = wx.PyEventBinder(mcEVT_MPD_CONNECTION, 1)
