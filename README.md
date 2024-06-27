@@ -3,18 +3,36 @@
 
 python -m venv --upgrade-deps venv
 
-# activate
+# windows
 
-venv/scripts/activate
+activate
 
-# deactivate
+```venv/scripts/activate```
 
 deactivate
 
-# install requirements
+```deactivate```
 
-pip install -r requirements.txt
+install requirements
 
-# run
+```pip install -r requirements.txt```
 
-python .\mpdcmd\
+run
+
+```python .\mpdcmd\```
+
+# linux
+
+activate
+
+```source venv/bin/activate```
+
+install requirements
+
+on debian bookworm ```apt-get isntall libgtk-3-dev``` is required for wxPython
+
+```pip install -r requirements.txt```
+
+run
+
+```python ./mpdcmd/```
