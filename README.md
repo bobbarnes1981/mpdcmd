@@ -29,7 +29,7 @@ activate
 
 install requirements
 
-on debian bookworm ```apt-get isntall libgtk-3-dev``` is required for wxPython
+on debian bookworm ```apt-get install libgtk-3-dev``` is required for wxPython
 
 ```pip install -r requirements.txt```
 
