@@ -306,9 +306,6 @@ class MpdCmdFrame(wx.Frame):
         self.logger = logging.getLogger("MpdCmdFrame")
         self.logger.info("Starting MpdCmdFrame")
 
-        # init client
-        self.client = None
-
         # init mpd
         self.mpd = MpdController(self, "192.168.1.10", "6600") # TODO: load from config
         self.Bind(EVT_MPD_CONNECTION, self.OnConnectionChanged)
