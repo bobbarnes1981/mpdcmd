@@ -7,7 +7,7 @@ import wx
 import wx.adv
 from threading import *
 
-logging.basicConfig(level=logging.WARN)
+logging.basicConfig(level=logging.WARN,format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 def get_icon(file):
     icon = wx.Icon()
