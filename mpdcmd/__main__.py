@@ -1,11 +1,10 @@
+import json
 import logging
 import musicpd
 import os
 import threading
-import time
 import wx
 import wx.adv
-from threading import *
 
 logging.basicConfig(level=logging.WARN,format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
@@ -103,8 +102,8 @@ class MpdConnection():
     """Execute the provided function with a connected client"""
     def execute(self, func: callable, *args):
         musicpd.CONNECTION_TIMEOUT = 1
-        os.environ['MPD_HOST'] = '192.168.1.10'
-        os.environ['MPD_PORT'] = '6600'
+        os.environ['MPD_HOST'] = self.host
+        os.environ['MPD_PORT'] = self.port
         try:
             self.logger.debug("Connecting to %s:%s", self.host, self.port)
             with musicpd.MPDClient() as client:
@@ -114,7 +113,7 @@ class MpdConnection():
         except musicpd.MPDError as e:
             connection_status = "Connection error"
             self.logger.warning("Connection error %s" % func.__name__)
-            self.logger.debug(e)
+            self.logger.warning(e)
         if self.connection_status != connection_status:
             self.connection_status = connection_status
             wx.PostEvent(self.window, MpdConnectionEvent(connection_status))
@@ -153,7 +152,7 @@ class MpdController():
 
     """Refresh the stats"""
     def refreshStats(self) -> None:
-        Thread(target=self.connection.execute, args=(self.__refreshStats,)).start()
+        threading.Thread(target=self.connection.execute, args=(self.__refreshStats,)).start()
     def __refreshStats(self, cli) -> None:
         self.logger.debug("refreshStats()")
         stats = {}
@@ -164,7 +163,7 @@ class MpdController():
 
     """Refresh the status info"""
     def refreshStatus(self) -> None:
-        Thread(target=self.connection.execute, args=(self.__refreshStatus,)).start()
+        threading.Thread(target=self.connection.execute, args=(self.__refreshStatus,)).start()
     def __refreshStatus(self, cli) -> None:
         self.logger.debug("refreshStatus()")
         status = {}
@@ -175,7 +174,7 @@ class MpdController():
 
     """Refresh the current song"""
     def refreshCurrentSong(self) -> None:
-        Thread(target=self.connection.execute, args=(self.__refreshCurrentSong,)).start()
+        threading.Thread(target=self.connection.execute, args=(self.__refreshCurrentSong,)).start()
     def __refreshCurrentSong(self, cli) -> None:
         self.logger.debug("refreshCurrentSong()")
         songid = self.status.get('songid', None)
@@ -189,7 +188,7 @@ class MpdController():
 
     """Refresh albums"""
     def refreshAlbums(self):
-        Thread(target=self.connection.execute, args=(self.__refreshAlbums,)).start()
+        threading.Thread(target=self.connection.execute, args=(self.__refreshAlbums,)).start()
     def __refreshAlbums(self, cli):
         self.logger.debug("refreshAlbums()")
         albums = []
@@ -206,7 +205,7 @@ class MpdController():
 
     """Refresh the queue"""
     def refreshQueue(self):
-        Thread(target=self.connection.execute, args=(self.__refreshQueue,)).start()
+        threading.Thread(target=self.connection.execute, args=(self.__refreshQueue,)).start()
     def __refreshQueue(self, cli):
         self.logger.debug("refreshQueue()")
         queue = {}
@@ -215,14 +214,14 @@ class MpdController():
 
     """Play the queue position"""
     def playQueuePos(self, queue_pos):
-        Thread(target=self.connection.execute, args=(self.__playQueuePos, queue_pos)).start()
+        threading.Thread(target=self.connection.execute, args=(self.__playQueuePos, queue_pos)).start()
     def __playQueuePos(self, cli, queue_pos):
         self.logger.debug("playQueuePos()")
         cli.play(queue_pos)
 
     """Play the album tag"""
     def playAlbumTag(self, album_name: str) -> None:
-        Thread(target=self.connection.execute, args=(self.__playAlbumTag, album_name)).start()
+        threading.Thread(target=self.connection.execute, args=(self.__playAlbumTag, album_name)).start()
     def __playAlbumTag(self, cli, album_name: str) -> None:
         self.logger.debug("playAlbumTag()")
         cli.clear()
@@ -233,35 +232,35 @@ class MpdController():
 
     """Pause playing the current song"""
     def pause(self):
-        Thread(target=self.connection.execute, args=(self.__pause,)).start()
+        threading.Thread(target=self.connection.execute, args=(self.__pause,)).start()
     def __pause(self, cli):
         self.logger.debug("pause()")
         cli.pause()
 
     """Play the current song in queue"""
     def play(self):
-        Thread(target=self.connection.execute, args=(self.__play,)).start()
+        threading.Thread(target=self.connection.execute, args=(self.__play,)).start()
     def __play(self, cli):
         self.logger.debug("play()")
         cli.play()
 
     """Next song in queue"""
     def next(self):
-        Thread(target=self.connection.execute, args=(self.__next,)).start()
+        threading.Thread(target=self.connection.execute, args=(self.__next,)).start()
     def __next(self, cli):
         self.logger.debug("next()")
         cli.next()
 
     """Previous song in qeueue"""
     def prev(self):
-        Thread(target=self.connection.execute, args=(self.__prev,)).start()
+        threading.Thread(target=self.connection.execute, args=(self.__prev,)).start()
     def __prev(self, cli):
         self.logger.debug("prev()")
         cli.previous()
 
     """Set volume"""
     def setVolume(self, volume):
-        Thread(target=self.connection.execute, args=(self.__setVolume, volume)).start()
+        threading.Thread(target=self.connection.execute, args=(self.__setVolume, volume)).start()
     def __setVolume(self, cli, volume):
         self.logger.debug("setVolume()")
         cli.setvol(volume)
@@ -341,8 +340,11 @@ class MpdCmdFrame(wx.Frame):
         self.logger = logging.getLogger(type(self).__name__)
         self.logger.info("Starting %s" % type(self).__name__)
 
+        self.preferences_file = os.path.join(os.path.curdir, 'preferences.json')
+        self.preferences = self.loadPreferences()
+
         # init mpd
-        self.mpd = MpdController(self, "192.168.1.10", "6600") # TODO: load from config
+        self.mpd = MpdController(self, self.preferences['host'], self.preferences['port'])
 
         self.Bind(EVT_MPD_CONNECTION, self.OnConnectionChanged)
         self.Bind(EVT_MPD_STATS, self.OnStatsChanged)
@@ -434,6 +436,15 @@ class MpdCmdFrame(wx.Frame):
         self.mpd.refreshStatus()
         self.mpd.refreshAlbums()
         self.mpd.refreshQueue()
+
+    """Load preferences"""
+    def loadPreferences(self):
+        if os.path.isfile(self.preferences_file) == False:
+            with open(self.preferences_file, 'w') as file:
+                preferences = {"host":"","port":""}
+                file.write(json.dumps(preferences))
+        with open(self.preferences_file, 'r') as f:
+            return json.loads(f.read())
 
     """Make the notebook"""
     def makeNotebook(self, parent) -> wx.Notebook:
@@ -666,11 +677,12 @@ class MpdCmdFrame(wx.Frame):
     """Preferences menu selected"""
     def OnPref(self, event: wx.CommandEvent) -> None:
         self.logger.debug("OnPref()")
-        wx.MessageBox("TODO: show preferences window with ip and port options")
+        preferences = MpdPreferencesFrame(self.preferences, self, title='Preferences', size=(320,240))
+        preferences.Show()
     """About menu selected"""
     def OnAbout(self, event: wx.CommandEvent) -> None:
         self.logger.debug("OnAbout()")
-        wx.MessageBox("Some text", "Title", wx.OK|wx.ICON_INFORMATION)
+        wx.MessageBox("Music Player Daemon Command\r\nWxPython MPD Client", "About", wx.OK|wx.ICON_INFORMATION)
     """Exit menu selected"""
     def OnExit(self, event: wx.CommandEvent) -> None:
         self.logger.debug("OnExit()")
@@ -681,6 +693,50 @@ class MpdCmdFrame(wx.Frame):
             self.mpd.stop()
         self.timer.Stop()
         self.Destroy()
+
+
+"""Mpd main window"""
+class MpdPreferencesFrame(wx.Frame):
+    def __init__(self, preferences, *args, **kw):
+        wx.Frame.__init__(self, *args, **kw)
+
+        self.logger = logging.getLogger(type(self).__name__)
+        self.logger.info("Starting %s" % type(self).__name__)
+
+        self.preferences = preferences
+
+        panel = wx.Panel(self)
+
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        panel.SetSizer(sizer)
+
+        hostLabel = wx.StaticText(panel, label='Host')
+        sizer.Add(hostLabel, 0, wx.EXPAND|wx.ALL, 1)
+
+        hostText = wx.TextCtrl(panel, value=self.preferences['host'])
+        sizer.Add(hostText, 0, wx.EXPAND|wx.ALL, 1)
+
+        portLabel = wx.StaticText(panel, label='Port')
+        sizer.Add(portLabel, 0, wx.EXPAND|wx.ALL, 1)
+
+        portText = wx.TextCtrl(panel, value=self.preferences['port'])
+        sizer.Add(portText, 0, wx.EXPAND|wx.ALL, 1)
+
+        cancelButton = wx.Button(panel, label="Cancel")
+        self.Bind(wx.EVT_BUTTON, self.OnCancel, cancelButton)
+        sizer.Add(cancelButton, 0, wx.EXPAND|wx.ALL, 1)
+
+        saveButton = wx.Button(panel, label="Save")
+        self.Bind(wx.EVT_BUTTON, self.OnSave, saveButton)
+        sizer.Add(saveButton, 0, wx.EXPAND|wx.ALL, 1)
+
+    """"""
+    def OnSave(self, event: wx.PyCommandEvent) -> None:
+        self.logger.debug("OnSave()")
+
+    """"""
+    def OnCancel(self, event: wx.PyCommandEvent) -> None:
+        self.logger.debug("OnCancel()")
 
 def main():
     app = wx.App()
