@@ -118,19 +118,23 @@ class MpdController():
         self.current_song = {}
 
         self.status_thread = None
+        self.idle_thread = None
 
-    """Start the status background thread"""
+    """Start the background threads"""
     def start(self) -> None:
-        self.logger.info("Starting thread")
+        self.logger.info("Starting threads")
         self.status_thread = MpdStatusThread(self.window, self.connection)
         self.status_thread.start()
-        pass
+        self.idle_thread = MpdIdleThread(self.window, self.connection)
+        self.idle_thread.start()
 
     """Stop the status background thread"""
     def stop(self) -> None:
         self.logger.info("Stopping thread")
         if self.status_thread:
             self.status_thread.stop()
+        if self.idle_thread:
+            self.idle_thread.stop()
 
     """Refresh the stats"""
     def refreshStats(self) -> None:
@@ -268,6 +272,45 @@ class MpdStatusThread(threading.Thread):
         if self.status != status:
             self.status = status
             wx.PostEvent(self.parent, MpdStatusEvent(self.status))
+
+""""""
+class MpdIdleThread(threading.Thread):
+
+    """Initialise the MpdIdleThread"""
+    def __init__(self, parent: wx.Window, connection: MpdConnection):
+        threading.Thread.__init__(self)
+        self.parent = parent
+        self.connection = connection
+        
+        self.logger = logging.getLogger(type(MpdIdleThread).__name__)
+        self.logger.info("Starting %s" % type(MpdIdleThread).__name__)
+
+        self.running = False
+        self.socket_timeout = 10
+
+    """Start the thread (override)"""
+    def run(self):
+        self.running = True
+        while self.running:
+            self.logger.debug("tick()")
+            self.connection.execute(self.__idle)
+            time.sleep(self.socket_timeout)
+    """Stop the thread"""
+    def stop(self) -> None:
+        self.running = False
+
+    """Refresh the status info"""
+    def __idle(self, cli) -> None:
+        self.logger.debug("idle()")
+        cli.socket_timeout = self.socket_timeout
+        try:
+            print('idle')
+            idle = cli.idle()
+            print(idle)
+            cli.noidle()
+        except TimeoutError:
+            print('timeout')
+        #wx.PostEvent(self.parent, MpdStatusEvent(self.status))
 
 """Mpd main window"""
 class MpdCmdFrame(wx.Frame):
