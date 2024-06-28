@@ -9,6 +9,11 @@ from threading import *
 
 logging.basicConfig(level=logging.WARN)
 
+def get_icon(file):
+    icon = wx.Icon()
+    icon.LoadFile(os.path.join(os.path.curdir, 'mpdcmd', 'icons', "%s.png" % file), type=wx.BITMAP_TYPE_PNG)
+    return icon
+
 mcEVT_MPD_CONNECTION = wx.NewEventType()
 EVT_MPD_CONNECTION = wx.PyEventBinder(mcEVT_MPD_CONNECTION, 1)
 class MpdConnectionEvent(wx.PyCommandEvent):
@@ -90,7 +95,7 @@ class MpdConnection():
                 func(client, *args)
         except musicpd.MPDError as e:
             connection_status = "Connection error"
-            self.logger.warning(connection_status)
+            self.logger.warning("Connection error %s" % func.__name__)
         if self.connection_status != connection_status:
             self.connection_status = connection_status
             wx.PostEvent(self.window, MpdConnectionEvent(connection_status))
@@ -291,23 +296,53 @@ class MpdCmdFrame(wx.Frame):
         self.connection_status = "Not connected"
         self.volume_changing = False
 
-        # create interface
+        # create layout
         self.main_panel = wx.Panel(self)
+        #self.main_panel.SetBackgroundColour((0xff, 0x00, 0x00))
         self.main_sizer = wx.BoxSizer(wx.VERTICAL)
-
-        nb = self.makeNotebook()
-        self.main_sizer.Add(nb, 1, wx.EXPAND|wx.ALL, 1)
-        
-        self.currentSongText = wx.StaticText(self.main_panel, label="Not Playing")
-        self.main_sizer.Add(self.currentSongText, 0, wx.EXPAND|wx.LEFT|wx.RIGHT, 8)
-        
-        self.currentSongTime = wx.StaticText(self.main_panel, label="00:00/00:00")
-        self.main_sizer.Add(self.currentSongTime, 0, wx.EXPAND|wx.LEFT|wx.RIGHT, 8)
-        
-        tr = self.makeTransport()
-        self.main_sizer.Add(tr, 0, wx.EXPAND|wx.ALL, 5)
-
         self.main_panel.SetSizer(self.main_sizer)
+
+        self.top_panel = wx.Panel(self.main_panel)
+        #self.top_panel.SetBackgroundColour((0x00, 0xff, 0x00))
+        self.top_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.top_panel.SetSizer(self.top_sizer)
+        self.main_sizer.Add(self.top_panel, 1, wx.EXPAND|wx.ALL, 1)
+
+        self.bot_panel = wx.Panel(self.main_panel)
+        #self.bot_panel.SetBackgroundColour((0x00, 0x00, 0xff))
+        self.bot_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.bot_panel.SetSizer(self.bot_sizer)
+        self.main_sizer.Add(self.bot_panel, 0, wx.EXPAND|wx.ALL, 1)
+
+        self.l_panel = wx.Panel(self.bot_panel)
+        #self.l_panel.SetBackgroundColour((0xff, 0xff, 0x00))
+        self.l_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.l_panel.SetSizer(self.l_sizer)
+        self.bot_sizer.Add(self.l_panel, 1, wx.EXPAND|wx.ALL, 1)
+        
+        self.r_panel = wx.Panel(self.bot_panel)
+        #self.r_panel.SetBackgroundColour((0x00, 0xff, 0xff))
+        self.r_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.r_panel.SetSizer(self.r_sizer)
+        self.bot_sizer.Add(self.r_panel, 0, wx.EXPAND|wx.ALL, 1)
+
+        # create ui
+        nb = self.makeNotebook(self.top_panel)
+        self.top_sizer.Add(nb, 1, wx.EXPAND|wx.ALL, 1)
+
+        self.currentSongText = wx.StaticText(self.l_panel, label="Not Playing")
+        self.l_sizer.Add(self.currentSongText, 0, wx.EXPAND|wx.LEFT|wx.RIGHT, 8)
+        
+        self.currentSongTime = wx.StaticText(self.l_panel, label="00:00/00:00")
+        self.l_sizer.Add(self.currentSongTime, 0, wx.EXPAND|wx.LEFT|wx.RIGHT, 8)
+        
+        tr = self.makeTransport(self.l_panel)
+        self.l_sizer.Add(tr, 0, wx.ALL|wx.ALL, 1)
+
+        file = 'icon'
+        bitmap = wx.Image(os.path.join(os.path.curdir, 'mpdcmd', 'icons', "%s.png" % file), type=wx.BITMAP_TYPE_PNG).ConvertToBitmap()
+        self.art = wx.StaticBitmap(self.r_panel, wx.ID_ANY, bitmap, size=(80,80)) # TODO: better solution to keep art square?
+        self.r_sizer.Add(self.art, 0, wx.EXPAND|wx.ALL, 1)
 
         self.logger.info("Initialising UI")
 
@@ -326,8 +361,8 @@ class MpdCmdFrame(wx.Frame):
         self.mpd.refreshQueue()
 
     """Make the notebook"""
-    def makeNotebook(self) -> wx.Notebook:
-        notebook = wx.Notebook(self.main_panel)
+    def makeNotebook(self, parent) -> wx.Notebook:
+        notebook = wx.Notebook(parent)
 
         self.queueCtrl = wx.ListCtrl(notebook)
         self.queueCtrl.SetWindowStyleFlag(wx.LC_REPORT)
@@ -359,8 +394,8 @@ class MpdCmdFrame(wx.Frame):
 
         return notebook
     """Make the transport"""
-    def makeTransport(self) -> wx.Panel:
-        transport = wx.Panel(self.main_panel)
+    def makeTransport(self, parent) -> wx.Panel:
+        transport = wx.Panel(parent)
         tr_hori = wx.BoxSizer(wx.HORIZONTAL)
 
         prevButton = wx.Button(transport, label="Prev")
@@ -483,7 +518,9 @@ class MpdCmdFrame(wx.Frame):
                 self.queueCtrl.SetItem(s, 0, '>')
             else:
                 self.queueCtrl.SetItem(s, 0, ' ')
-        wx.adv.NotificationMessage("MPDCMD", "%s. %s - %s\r\n%s" % (self.current_song.get('track', '?'), self.current_song.get('artist', '?'), self.current_song.get('title', '?'), self.current_song.get('album', '?'))).Show(5)
+        notification = wx.adv.NotificationMessage("MPDCMD", "%s. %s - %s\r\n%s" % (self.current_song.get('track', '?'), self.current_song.get('artist', '?'), self.current_song.get('title', '?'), self.current_song.get('album', '?')))
+        notification.SetIcon(get_icon('icon'))
+        notification.Show(5)
         self.currentSongText.SetLabel("%s. %s - %s (%s)" % (self.current_song.get('track', '?'), self.current_song.get('artist', '?'), self.current_song.get('title', '?'), self.current_song.get('album', '?')))
         self.updateStatusBarText()
     """Update status bar text"""
@@ -535,9 +572,7 @@ class MpdCmdFrame(wx.Frame):
 def main():
     app = wx.App()
     frame = MpdCmdFrame(None, title='MPDCMD', size=(640,480))
-    icon = wx.Icon()
-    icon.LoadFile(os.path.join(os.path.curdir, 'mpdcmd', 'icons', 'icon.png'), type=wx.BITMAP_TYPE_PNG)
-    frame.SetIcon(icon)
+    frame.SetIcon(get_icon('icon'))
     frame.Show()
     app.MainLoop()
 
