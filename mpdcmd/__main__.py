@@ -63,46 +63,49 @@ class MpdAlbumsEvent(wx.PyCommandEvent):
     def GetValue(self) -> list:
         return self._value
 
+"""Handles executing requests to MPD"""
 class MpdConnection():
 
-    """"""
+    """Initialise the MpdConnection"""
     def __init__(self, window: wx.Window, host: str, port: str):
         self.window = window
         self.host = host
         self.port = port
         
-        self.logger = logging.getLogger("MpdConnection")
-        self.logger.info("Starting MpdConnection")
+        self.logger = logging.getLogger(type(MpdConnection).__name__)
+        self.logger.info("Starting %s" % type(MpdConnection).__name__)
 
         self.connection_status = None
 
-    """Get a connected client"""
-    def getClient(self) -> musicpd.MPDClient:
+    """Execute the provided function with a connected client"""
+    def execute(self, func: callable, *args):
         musicpd.CONNECTION_TIMEOUT = 1
-        self.logger.debug("Connecting to %s:%s", self.host, self.port)
-        client = musicpd.MPDClient()
+        os.environ['MPD_HOST'] = '192.168.1.10'
+        os.environ['MPD_PORT'] = '6600'
         try:
-            client.connect(self.host, self.port)
-            connection_status = "Connected"
+            self.logger.debug("Connecting to %s:%s", self.host, self.port)
+            with musicpd.MPDClient() as client:
+                connection_status = "Connected"
+                self.logger.debug(connection_status)
+                func(client, *args)
         except musicpd.MPDError as e:
-            client = False
             connection_status = "Connection error"
             self.logger.warning(connection_status)
         if self.connection_status != connection_status:
             self.connection_status = connection_status
             wx.PostEvent(self.window, MpdConnectionEvent(connection_status))
-        return client
 
+"""Provides interface to MPD"""
 class MpdController():
 
-    """"""
+    """Initialise the MpdController"""
     def __init__(self, window: wx.Window, host: str, port: str):
         self.window = window
         self.host = host
         self.port = port
         
-        self.logger = logging.getLogger("MpdController")
-        self.logger.info("Starting MpdController")
+        self.logger = logging.getLogger(type(MpdController).__name__)
+        self.logger.info("Starting %s" % type(MpdController).__name__)
 
         self.connection = MpdConnection(self.window, host, port)
 
@@ -111,14 +114,14 @@ class MpdController():
 
         self.status_thread = None
 
-    """"""
+    """Start the status background thread"""
     def start(self) -> None:
         self.logger.info("Starting thread")
         self.status_thread = MpdStatusThread(self.window, self.connection)
         self.status_thread.start()
         pass
 
-    """"""
+    """Stop the status background thread"""
     def stop(self) -> None:
         self.logger.info("Stopping thread")
         if self.status_thread:
@@ -126,148 +129,116 @@ class MpdController():
 
     """Refresh the stats"""
     def refreshStats(self) -> None:
-        Thread(target=self.__refreshStats).start()
-    def __refreshStats(self) -> None:
+        Thread(target=self.connection.execute, args=(self.__refreshStats,)).start()
+    def __refreshStats(self, cli) -> None:
         self.logger.debug("refreshStats()")
-        cli = self.connection.getClient()
         stats = {}
-        if cli:
-            stats = cli.stats()
-            cli.disconnect()
+        stats = cli.stats()
         if self.stats != stats:
             self.stats = stats
             wx.PostEvent(self.window, MpdStatsEvent(self.stats))
 
     """Refresh the current song"""
     def refreshCurrentSong(self) -> None:
-        Thread(target=self.__refreshCurrentSong).start()
-    def __refreshCurrentSong(self) -> None:
+        Thread(target=self.connection.execute, args=(self.__refreshCurrentSong,)).start()
+    def __refreshCurrentSong(self, cli) -> None:
         self.logger.debug("refreshCurrentSong()")
-        cli = self.connection.getClient()
         current_song = {}
-        if cli:
-            current_song = cli.playlistid(self.status_thread.status.get('songid', ''))[0]
-            cli.disconnect()
+        current_song = cli.playlistid(self.status_thread.status.get('songid', ''))[0]
         if self.current_song != current_song:
             self.current_song = current_song
             wx.PostEvent(self.window, MpdCurrentSongEvent(self.current_song))
 
     """Refresh albums"""
     def refreshAlbums(self):
-        Thread(target=self.__refreshAlbums).start()
-    def __refreshAlbums(self):
+        Thread(target=self.connection.execute, args=(self.__refreshAlbums,)).start()
+    def __refreshAlbums(self, cli):
         self.logger.debug("refreshAlbums()")
-        cli = self.connection.getClient()
         albums = []
-        if cli:
-            albums_result = cli.list('AlbumSort')
-            for album in albums_result:
-                tracks = cli.find('(Album == "%s")' % album)
-                is_various = False
-                for t in range(1, len(tracks)):
-                    if tracks[t-1]['artist'] != tracks[t]['artist']:
-                        is_various = True
-                        break
-                albums.append([album, 'VA' if is_various else tracks[0]['artist'], len(tracks)])
-            cli.disconnect()
-            wx.PostEvent(self.window, MpdAlbumsEvent(albums))
+        albums_result = cli.list('AlbumSort')
+        for album in albums_result:
+            tracks = cli.find('(Album == "%s")' % album)
+            is_various = False
+            for t in range(1, len(tracks)):
+                if tracks[t-1]['artist'] != tracks[t]['artist']:
+                    is_various = True
+                    break
+            albums.append([album, 'VA' if is_various else tracks[0]['artist'], len(tracks)])
+        wx.PostEvent(self.window, MpdAlbumsEvent(albums))
 
     """Refresh the queue"""
     def refreshQueue(self):
-        Thread(target=self.__refreshQueue).start()
-    def __refreshQueue(self):
+        Thread(target=self.connection.execute, args=(self.__refreshQueue,)).start()
+    def __refreshQueue(self, cli):
         self.logger.debug("refreshQueue()")
-        cli = self.connection.getClient()
         queue = {}
-        if cli:
-            queue = cli.playlistid()
-            cli.disconnect()
-            wx.PostEvent(self.window, MpdQueueEvent(queue))
+        queue = cli.playlistid()
+        wx.PostEvent(self.window, MpdQueueEvent(queue))
 
     """Play the queue position"""
     def playQueuePos(self, queue_pos):
+        Thread(target=self.connection.execute, args=(self.__playQueuePos, queue_pos)).start()
+    def __playQueuePos(self, cli, queue_pos):
         self.logger.debug("playQueuePos()")
-        Thread(target=self.__playQueuePos, args=(queue_pos,)).start()
-    def __playQueuePos(self, queue_pos):
-        cli = self.connection.getClient()
-        if cli:
-            cli.play(queue_pos)
-            cli.disconnect()
+        cli.play(queue_pos)
 
     """Play the album tag"""
     def playAlbumTag(self, album_name: str) -> None:
-        Thread(target=self.__playAlbumTag, args=(album_name,)).start()
-    def __playAlbumTag(self, album_name: str) -> None:
-        cli = self.connection.getClient()
-        if cli:
-            cli.clear()
-            cli.findadd('(Album == "%s")' % album_name)
-            queue = cli.playlistid()
-            cli.play()
-            cli.disconnect()
-            wx.PostEvent(self.window, MpdQueueEvent(queue))
+        Thread(target=self.connection.execute, args=(self.__playAlbumTag, album_name)).start()
+    def __playAlbumTag(self, cli, album_name: str) -> None:
+        self.logger.debug("playAlbumTag()")
+        cli.clear()
+        cli.findadd('(Album == "%s")' % album_name)
+        queue = cli.playlistid()
+        cli.play()
+        wx.PostEvent(self.window, MpdQueueEvent(queue))
 
     """Pause playing the current song"""
     def pause(self):
+        Thread(target=self.connection.execute, args=(self.__pause,)).start()
+    def __pause(self, cli):
         self.logger.debug("pause()")
-        Thread(target=self.__pause).start()
-    def __pause(self):
-        cli = self.connection.getClient()
-        if cli:
-            cli.pause()
-            cli.disconnect()
+        cli.pause()
 
     """Play the current song in queue"""
     def play(self):
+        Thread(target=self.connection.execute, args=(self.__play,)).start()
+    def __play(self, cli):
         self.logger.debug("play()")
-        Thread(target=self.__play).start()
-    def __play(self):
-        cli = self.connection.getClient()
-        if cli:
-            cli.play()
-            cli.disconnect()
+        cli.play()
 
     """Next song in queue"""
     def next(self):
+        Thread(target=self.connection.execute, args=(self.__next,)).start()
+    def __next(self, cli):
         self.logger.debug("next()")
-        Thread(target=self.__next).start()
-    def __next(self):
-        cli = self.connection.getClient()
-        if cli:
-            cli.next()
-            cli.disconnect()
+        cli.next()
 
     """Previous song in qeueue"""
     def prev(self):
+        Thread(target=self.connection.execute, args=(self.__prev,)).start()
+    def __prev(self, cli):
         self.logger.debug("prev()")
-        Thread(target=self.__prev).start()
-    def __prev(self):
-        cli = self.connection.getClient()
-        if cli:
-            cli.previous()
-            cli.disconnect()
+        cli.previous()
 
     """Set volume"""
     def setVolume(self, volume):
+        Thread(target=self.connection.execute, args=(self.__setVolume, volume)).start()
+    def __setVolume(self, cli, volume):
         self.logger.debug("setVolume()")
-        Thread(target=self.__setVolume, args=(volume,)).start()
-    def __setVolume(self, volume):
-        cli = self.connection.getClient()
-        if cli:
-            cli.setvol(volume)
-            cli.disconnect()
+        cli.setvol(volume)
 
+"""Background thread to check MPD status"""
 class MpdStatusThread(threading.Thread):
 
-    """"""
+    """Initialise the MpdStatusThread"""
     def __init__(self, parent: wx.Window, connection: MpdConnection):
         threading.Thread.__init__(self)
         self.parent = parent
         self.connection = connection
         
-        self.logger = logging.getLogger("MpdThread")
-
-        self.logger.info("Starting MpdThread")
+        self.logger = logging.getLogger(type(MpdStatusThread).__name__)
+        self.logger.info("Starting %s" % type(MpdStatusThread).__name__)
 
         self.status = {}
 
@@ -278,33 +249,31 @@ class MpdStatusThread(threading.Thread):
         self.running = True
         while self.running:
             self.logger.debug("tick()")
-            self.__refreshStatus()
+            self.connection.execute(self.__refreshStatus)
             time.sleep(1)
     """Stop the thread"""
     def stop(self) -> None:
         self.running = False
 
     """Refresh the status info"""
-    def __refreshStatus(self) -> None:
+    def __refreshStatus(self, cli) -> None:
         self.logger.debug("refreshStatus()")
-        cli = self.connection.getClient()
         status = {}
-        if cli:
-            status = cli.status()
-            cli.disconnect()
+        status = cli.status()
         if self.status != status:
             self.status = status
             wx.PostEvent(self.parent, MpdStatusEvent(self.status))
 
+"""Mpd main window"""
 class MpdCmdFrame(wx.Frame):
 
-    """"""
+    """Initialise MpdCmdFrame"""
     def __init__(self, *args, **kw):
         wx.Frame.__init__(self, *args, **kw)
         self.Bind(wx.EVT_CLOSE, self.OnClose)
 
-        self.logger = logging.getLogger("MpdCmdFrame")
-        self.logger.info("Starting MpdCmdFrame")
+        self.logger = logging.getLogger(type(MpdCmdFrame).__name__)
+        self.logger.info("Starting %s" % type(MpdCmdFrame).__name__)
 
         # init mpd
         self.mpd = MpdController(self, "192.168.1.10", "6600") # TODO: load from config
@@ -491,13 +460,13 @@ class MpdCmdFrame(wx.Frame):
         self.updatePlayPause()
         self.updateVolume()
         self.updateSongTime()
-    """Update play/pause button"""
+    """Update play/pause button label"""
     def updatePlayPause(self) -> None:
         if self.status.get('state', '') != 'play':
             self.playButton.SetLabel("Play")
         else:
             self.playButton.SetLabel("Pause")
-    """Update the volume value"""
+    """Update the volume slider value"""
     def updateVolume(self) -> None:
         if self.volume_changing == False:
             self.currentVol.SetValue(int(self.status.get('volume', '0')))
