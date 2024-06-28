@@ -339,8 +339,7 @@ class MpdCmdFrame(wx.Frame):
         tr = self.makeTransport(self.l_panel)
         self.l_sizer.Add(tr, 0, wx.ALL|wx.ALL, 1)
 
-        file = 'icon'
-        bitmap = wx.Image(os.path.join(os.path.curdir, 'mpdcmd', 'icons', "%s.png" % file), type=wx.BITMAP_TYPE_PNG).ConvertToBitmap()
+        bitmap = self.getCurrentAlbumArt()
         self.art = wx.StaticBitmap(self.r_panel, wx.ID_ANY, bitmap, size=(80,80)) # TODO: better solution to keep art square?
         self.r_sizer.Add(self.art, 0, wx.EXPAND|wx.ALL, 1)
 
@@ -441,6 +440,14 @@ class MpdCmdFrame(wx.Frame):
     def secondsToTime(self, seconds: float) -> str:
         return "%02d:%02d" % (seconds//60, seconds%60)
 
+    """Get the album art for song id"""
+    def getAlbumArt(self, song_id) -> wx.Bitmap:
+        file = 'icon'
+        return wx.Image(os.path.join(os.path.curdir, 'mpdcmd', 'icons', "%s.png" % file), type=wx.BITMAP_TYPE_PNG).ConvertToBitmap()
+    """Get the current album art"""
+    def getCurrentAlbumArt(self) -> wx.Bitmap:
+        return self.getAlbumArt(self.current_song.get('id', ''))
+
     """MPD connection changed"""
     def OnConnectionChanged(self, event: MpdConnectionEvent) -> None:
         self.connection_status = event.GetValue()
@@ -519,7 +526,7 @@ class MpdCmdFrame(wx.Frame):
             else:
                 self.queueCtrl.SetItem(s, 0, ' ')
         notification = wx.adv.NotificationMessage("MPDCMD", "%s. %s - %s\r\n%s" % (self.current_song.get('track', '?'), self.current_song.get('artist', '?'), self.current_song.get('title', '?'), self.current_song.get('album', '?')))
-        notification.SetIcon(get_icon('icon'))
+        notification.SetIcon(wx.Icon(self.getCurrentAlbumArt()))
         notification.Show(5)
         self.currentSongText.SetLabel("%s. %s - %s (%s)" % (self.current_song.get('track', '?'), self.current_song.get('artist', '?'), self.current_song.get('title', '?'), self.current_song.get('album', '?')))
         self.updateStatusBarText()
