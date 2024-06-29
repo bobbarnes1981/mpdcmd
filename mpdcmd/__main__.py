@@ -184,6 +184,7 @@ class MpdController():
 
         self.stats = {}
         self.status = {}
+        self.queue = {}
         self.current_song = {}
 
         self.idle_thread = None
@@ -260,7 +261,9 @@ class MpdController():
         self.logger.debug("refreshQueue()")
         queue = {}
         queue = cli.playlistid()
-        wx.PostEvent(self.window, MpdQueueEvent(queue))
+        if self.queue != queue:
+            self.queue = queue
+            wx.PostEvent(self.window, MpdQueueEvent(queue))
 
     """"""
     def refreshSongs(self) -> None:
@@ -715,8 +718,7 @@ class MpdCmdFrame(wx.Frame):
     def OnAlbumArtChanged(self, event: MpdAlbumArtEvent) -> None:
         songid = event.GetValue()
         self.logger.info("Albumart changed %s" % songid)
-        bitmap = self.mpd.getAlbumArt(self.current_song.get('id', ''))
-        self.art.Bitmap = bitmap
+        self.setCurrentAlbumArt()
 
     """MPD current song changed"""
     def OnCurrentSongChanged(self, event: MpdCurrentSongEvent) -> None:
@@ -735,8 +737,11 @@ class MpdCmdFrame(wx.Frame):
         queue = event.GetValue()
         self.logger.info("Queue changed %s" % len(queue))
         self.queueCtrl.DeleteAllItems()
-        for song in queue:
-            self.queueCtrl.Append(['',song['id'],song['pos'],song['album'],song['artist'],song['track'],song['title']])
+        for s in range(0, len(queue)):
+            prefix = ''
+            if self.current_song.get('pos', '') == str(s):
+                prefix = '>'
+            self.queueCtrl.Append([prefix,queue[s]['id'],queue[s]['pos'],queue[s]['album'],queue[s]['artist'],queue[s]['track'],queue[s]['title']])
 
     """Idle player event"""
     def OnIdlePlayer(self, event: MpdIdlePlayerEvent) -> None:
@@ -802,11 +807,19 @@ class MpdCmdFrame(wx.Frame):
                 self.queueCtrl.SetItem(s, 0, '>')
             else:
                 self.queueCtrl.SetItem(s, 0, ' ')
+        self.showNotification()
+        self.setCurrentAlbumArt()
+        self.currentSongText.SetLabel("%s. %s - %s (%s)" % (self.current_song.get('track', '?'), self.current_song.get('artist', '?'), self.current_song.get('title', '?'), self.current_song.get('album', '?')))
+        self.updateStatusBarText()
+    """Show notification"""
+    def showNotification(self) -> None:
         notification = wx.adv.NotificationMessage("MPDCMD", "%s. %s - %s\r\n%s" % (self.current_song.get('track', '?'), self.current_song.get('artist', '?'), self.current_song.get('title', '?'), self.current_song.get('album', '?')))
         notification.SetIcon(wx.Icon(self.mpd.getAlbumArt(self.current_song.get('id', ''))))
         notification.Show(5)
-        self.currentSongText.SetLabel("%s. %s - %s (%s)" % (self.current_song.get('track', '?'), self.current_song.get('artist', '?'), self.current_song.get('title', '?'), self.current_song.get('album', '?')))
-        self.updateStatusBarText()
+    """Set current album art"""
+    def setCurrentAlbumArt(self) -> None:
+        bitmap = self.mpd.getAlbumArt(self.current_song.get('id', ''))
+        self.art.Bitmap = bitmap
 
     """Update status bar text"""
     def updateStatusBarText(self) -> None:
