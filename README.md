@@ -21,6 +21,8 @@ run
 
 ```python .\mpdcmd\```
 
+![Screenshot-Windows](Screenshot-Windows.png)
+
 # linux
 
 activate
