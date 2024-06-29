@@ -715,7 +715,7 @@ class MpdCmdFrame(wx.Frame):
     """Preferences menu selected"""
     def OnPref(self, event: wx.CommandEvent) -> None:
         self.logger.debug("OnPref()")
-        preferences = MpdPreferencesFrame(self.preferences, self, title='Preferences', size=(320,240))
+        preferences = MpdPreferencesFrame(self.preferences, self, title='Preferences', size=(320,270))
         preferences.Show()
     """About menu selected"""
     def OnAbout(self, event: wx.CommandEvent) -> None:
