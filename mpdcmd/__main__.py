@@ -61,10 +61,10 @@ class MpdPlaylistsEvent(wx.PyCommandEvent):
 mcEVT_MPD_ALBUMART = wx.NewEventType()
 EVT_MPD_ALBUMART = wx.PyEventBinder(mcEVT_MPD_ALBUMART, 1)
 class MpdAlbumArtEvent(wx.PyCommandEvent):
-    def __init__(self, value):
+    def __init__(self, value: str):
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_ALBUMART, -1)
         self._value = value
-    def GetValue(self):
+    def GetValue(self) -> str:
         return self._value
 
 mcEVT_MPD_CTRL_CURRENTSONG = wx.NewEventType()
@@ -271,8 +271,9 @@ class MpdController():
     def __refreshSongs(self, cli) -> None:
         self.logger.debug("refreshSongs()")
         songs = {}
-        songs = cli.listall()
-        wx.PostEvent(self.window, MpdSongsEvent(songs))
+        songs = cli.listallinfo()
+        filtered = list(filter(lambda song: song.get('directory', '') == '', songs))
+        wx.PostEvent(self.window, MpdSongsEvent(filtered))
 
     """"""
     def refreshPlaylists(self) -> None:
@@ -284,9 +285,9 @@ class MpdController():
         wx.PostEvent(self.window, MpdPlaylistsEvent(playlists))
     
     """"""
-    def refreshAlbumArt(self, songid, file) -> None:
-        threading.Thread(target=self.connection.execute, args=(self.__refreshAlbumArt, songid, file)).start()
-    def __refreshAlbumArt(self, cli, songid, file) -> None:
+    def refreshAlbumArt(self, artist, album, file) -> None:
+        threading.Thread(target=self.connection.execute, args=(self.__refreshAlbumArt, artist, album, file)).start()
+    def __refreshAlbumArt(self, cli, artist, album, file) -> None:
         self.logger.debug("refreshAlbumArt()")
         album_art = {}
         offset = 0
@@ -296,8 +297,8 @@ class MpdController():
             album_art = cli.albumart(file, offset)
             offset += int(album_art['binary'])
             data += album_art['data']
-        self.__saveAlbumArt(songid, data)
-        wx.PostEvent(self.window, MpdAlbumArtEvent(songid))
+        self.__saveAlbumArt(artist, album, data)
+        wx.PostEvent(self.window, MpdAlbumArtEvent(file))
 
     """Play the queue position"""
     def playQueuePos(self, queue_pos) -> None:
@@ -360,14 +361,14 @@ class MpdController():
         cli.update()
     
     """"""
-    def __saveAlbumArt(self, songid, data):
+    def __saveAlbumArt(self, artist, album, data):
         ext, typ = self.__getFileExtension(data)
-        orig_path = self.__getArtPath('albumart', songid, ext)
+        orig_path = self.__getArtPath('albumart', self.__getArtFile(artist, album), ext)
         with open(orig_path, 'wb') as f:
             f.write(data)
         if typ != wx.BITMAP_TYPE_PNG:
             orig_img = wx.Image(orig_path, type=typ)
-            new_path = self.__getArtPath('albumart', songid, 'png')
+            new_path = self.__getArtPath('albumart', self.__getArtFile(artist, album), 'png')
             orig_img.SaveFile(new_path, wx.BITMAP_TYPE_PNG)
             os.remove(orig_path)
 
@@ -380,17 +381,19 @@ class MpdController():
         raise Exception('Unhandled file type %s' % data[:5])
 
     """"""
-    def __getArtPath(self, folder, songid, ext) -> str:
-        return os.path.join(os.path.curdir, 'mpdcmd', folder, "%s.%s" % (songid, ext))
-
+    def __getArtPath(self, folder, file, ext) -> str:
+        return os.path.join(os.path.curdir, 'mpdcmd', folder, "%s.%s" % (file, ext))
+    """"""
+    def __getArtFile(self, artist, album) -> str:
+        return '%s-%s' % (artist, album)
     """"""
     def getDefaultAlbumArt(self) -> wx.Bitmap:
         path = self.__getArtPath('icons', 'icon', 'png')
         return wx.Image(path, type=wx.BITMAP_TYPE_PNG).Scale(80, 80).ConvertToBitmap()
     
     """"""
-    def getAlbumArt(self, songid) -> wx.Bitmap:
-        path = self.__getArtPath('albumart', songid, 'png')
+    def getAlbumArt(self, artist, album) -> wx.Bitmap:
+        path = self.__getArtPath('albumart', self.__getArtFile(artist, album), 'png')
         if os.path.isfile(path):
             return wx.Image(path, type=wx.BITMAP_TYPE_PNG).Scale(80, 80).ConvertToBitmap()
         return self.getDefaultAlbumArt()
@@ -585,6 +588,8 @@ class MpdCmdFrame(wx.Frame):
         self.mpd.refreshStatus()
         self.mpd.refreshAlbums()
         self.mpd.refreshQueue()
+        self.mpd.refreshPlaylists()
+        self.mpd.refreshSongs()
 
     """Load preferences"""
     def loadPreferences(self):
@@ -608,8 +613,9 @@ class MpdCmdFrame(wx.Frame):
         self.queueCtrl.InsertColumn(4, "Artist", width=100)
         self.queueCtrl.InsertColumn(5, "Track", width=50)
         self.queueCtrl.InsertColumn(6, "Title", width=200)
+        self.queueCtrl.InsertColumn(7, "Duration", width=70)
         try:
-            self.queueCtrl.SetColumnsOrder([0,1,2,3,4,5,6])
+            self.queueCtrl.SetColumnsOrder([0,1,2,3,4,5,6,7])
         except NotImplementedError:
             pass
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnQueueSelect, self.queueCtrl)
@@ -626,6 +632,32 @@ class MpdCmdFrame(wx.Frame):
             pass
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnAlbumSelect, self.albumCtrl)
         notebook.AddPage(self.albumCtrl, "Albums")
+
+        self.playlistsCtrl = wx.ListCtrl(notebook)
+        self.playlistsCtrl.SetWindowStyleFlag(wx.LC_REPORT)
+        self.playlistsCtrl.InsertColumn(0, "1", width=100)
+        try:
+            self.playlistsCtrl.SetColumnsOrder([0])
+        except NotImplementedError:
+            pass
+        self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnPlaylistSelect, self.playlistsCtrl)
+        notebook.AddPage(self.playlistsCtrl, "Playlists")
+
+        self.songsCtrl = wx.ListCtrl(notebook)
+        self.songsCtrl.SetWindowStyleFlag(wx.LC_REPORT)
+        self.songsCtrl.InsertColumn(0, "", width=20)
+        self.songsCtrl.InsertColumn(1, "Album", width=150)
+        self.songsCtrl.InsertColumn(2, "Artist", width=100)
+        self.songsCtrl.InsertColumn(3, "Track", width=50)
+        self.songsCtrl.InsertColumn(4, "Title", width=200)
+        self.songsCtrl.InsertColumn(5, "Duration", width=70)
+        try:
+            self.songsCtrl.SetColumnsOrder([0,1,2,3,4,5])
+        except NotImplementedError:
+            pass
+        self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnSongSelect, self.songsCtrl)
+        notebook.AddPage(self.songsCtrl, "Songs")
+        # TODO: add context menu to songsCtrl
 
         return notebook
     """Make the transport"""
@@ -707,13 +739,18 @@ class MpdCmdFrame(wx.Frame):
     """MPD songs changed"""
     def OnSongsChanged(self, event: MpdSongsEvent) -> None:
         songs = event.GetValue()
-        self.logger.info("Songs changed %s" % songs)
-        # TODO: update songs list
+        self.logger.info("Songs changed %s" % len(songs))
+        self.songsCtrl.DeleteAllItems()
+        for song in songs:
+            prefix = ''
+            self.songsCtrl.Append([prefix,song.get('album', ''),song.get('artist', ''),song.get('track', ''),song.get('title', ''),song.get('duration', '')])
     """MPD playlists changed"""
     def OnPlaylistsChanged(self, event: MpdPlaylistsEvent) -> None:
         playlists = event.GetValue()
         self.logger.info("Playlists changed %s" % playlists)
-        # TODO: update playlists list
+        self.playlistsCtrl.DeleteAllItems()
+        for playlist in playlists:
+            self.playlistsCtrl.Append(playlist)
     """MPD albumart changed"""
     def OnAlbumArtChanged(self, event: MpdAlbumArtEvent) -> None:
         songid = event.GetValue()
@@ -724,12 +761,13 @@ class MpdCmdFrame(wx.Frame):
     def OnCurrentSongChanged(self, event: MpdCurrentSongEvent) -> None:
         self.current_song = event.GetValue()
         self.logger.info("Song changed %s" % self.current_song)
-        self.mpd.refreshAlbumArt(self.current_song.get('id', ''), self.current_song.get('file', ''))
+        self.mpd.refreshAlbumArt(self.current_song.get('artist', ''), self.current_song.get('album', ''), self.current_song.get('file', ''))
         self.updateCurrentSong()
     """Albums changed"""
     def OnAlbumsChanged(self, event: MpdAlbumsEvent) -> None:
         albums = event.GetValue()
         self.logger.info("Albums changed %d" % len(albums))
+        self.albumCtrl.DeleteAllItems()
         for album in albums:
             self.albumCtrl.Append(album)
     """Queue changed"""
@@ -741,7 +779,7 @@ class MpdCmdFrame(wx.Frame):
             prefix = ''
             if self.current_song.get('pos', '') == str(s):
                 prefix = '>'
-            self.queueCtrl.Append([prefix,queue[s]['id'],queue[s]['pos'],queue[s]['album'],queue[s]['artist'],queue[s]['track'],queue[s]['title']])
+            self.queueCtrl.Append([prefix,queue[s]['id'],queue[s]['pos'],queue[s]['album'],queue[s]['artist'],queue[s]['track'],queue[s]['title'],queue[s]['duration']])
 
     """Idle player event"""
     def OnIdlePlayer(self, event: MpdIdlePlayerEvent) -> None:
@@ -773,6 +811,14 @@ class MpdCmdFrame(wx.Frame):
         queue_pos = int(self.queueCtrl.GetItem(self.queueCtrl.GetFirstSelected(), col=2).GetText())
         self.logger.info("Queue item selected %s", queue_pos)
         self.mpd.playQueuePos(queue_pos)
+    """Playlist item selected"""
+    def OnPlaylistSelect(self, event: wx.ListEvent):
+        playlist = self.playlistsCtrl.GetItem(self.playlistsCtrl.GetFirstSelected(), col=0).GetText()
+        self.logger.debug("Playlist selected %s" % playlist)
+    """Song item selected"""
+    def OnSongSelect(self, event: wx.ListEvent):
+        song = self.songsCtrl.GetItem(self.songsCtrl.GetFirstSelected(), col=0).GetText()
+        self.logger.debug("Song selected %s" % song)
 
     """Update the title text"""
     def updateTitle(self) -> None:
@@ -814,11 +860,11 @@ class MpdCmdFrame(wx.Frame):
     """Show notification"""
     def showNotification(self) -> None:
         notification = wx.adv.NotificationMessage("MPDCMD", "%s. %s - %s\r\n%s" % (self.current_song.get('track', '?'), self.current_song.get('artist', '?'), self.current_song.get('title', '?'), self.current_song.get('album', '?')))
-        notification.SetIcon(wx.Icon(self.mpd.getAlbumArt(self.current_song.get('id', ''))))
+        notification.SetIcon(wx.Icon(self.mpd.getAlbumArt(self.current_song.get('artist', ''), self.current_song.get('album', ''))))
         notification.Show(5)
     """Set current album art"""
     def setCurrentAlbumArt(self) -> None:
-        bitmap = self.mpd.getAlbumArt(self.current_song.get('id', ''))
+        bitmap = self.mpd.getAlbumArt(self.current_song.get('artist', ''), self.current_song.get('album', ''))
         self.art.Bitmap = bitmap
 
     """Update status bar text"""
