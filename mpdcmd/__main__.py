@@ -89,10 +89,12 @@ class MpdIdlePlaylistEvent(wx.PyCommandEvent):
 class MpdConnection():
 
     """Initialise the MpdConnection"""
-    def __init__(self, window: wx.Window, host: str, port: str):
+    def __init__(self, window: wx.Window, host: str, port: str, username: str, password: str):
         self.window = window
         self.host = host
         self.port = port
+        self.username = username
+        self.password = password
         
         self.logger = logging.getLogger(type(self).__name__)
         self.logger.info("Starting %s" % type(self).__name__)
@@ -104,12 +106,15 @@ class MpdConnection():
         musicpd.CONNECTION_TIMEOUT = 1
         os.environ['MPD_HOST'] = self.host
         os.environ['MPD_PORT'] = self.port
+        os.environ['MPD_USERNAME'] = self.username
+        os.environ['MPD_PASSWORD'] = self.password
         try:
             self.logger.debug("Connecting to %s:%s", self.host, self.port)
             with musicpd.MPDClient() as client:
                 connection_status = "Connected"
                 self.logger.debug(connection_status)
                 func(client, *args)
+                # TODO: without host config idle constantly requests FIXME
         except musicpd.MPDError as e:
             connection_status = "Connection error"
             self.logger.warning("Connection error %s" % func.__name__)
@@ -122,15 +127,17 @@ class MpdConnection():
 class MpdController():
 
     """Initialise the MpdController"""
-    def __init__(self, window: wx.Window, host: str, port: str):
+    def __init__(self, window: wx.Window, host: str, port: str, username: str, password:str):
         self.window = window
         self.host = host
         self.port = port
+        self.username = username
+        self.password = password
         
         self.logger = logging.getLogger(type(self).__name__)
         self.logger.info("Starting %s" % type(self).__name__)
 
-        self.connection = MpdConnection(self.window, host, port)
+        self.connection = MpdConnection(self.window, host, port, username, password)
 
         self.stats = {}
         self.status = {}
@@ -211,6 +218,33 @@ class MpdController():
         queue = {}
         queue = cli.playlistid()
         wx.PostEvent(self.window, MpdQueueEvent(queue))
+
+    """"""
+    def refreshSongs(self):
+        threading.Thread(target=self.connection.execute, args=(self.__refreshSongs,)).start()
+    def __refreshSongs(self, cli):
+        self.logger.debug("refreshSongs()")
+        songs = {}
+        songs = cli.listall()
+        wx.PostEvent(self.window, MpdSongsEvent(songs))
+
+    """"""
+    def refreshPlaylists(self):
+        threading.Thread(target=self.connection.execute, args=(self.__refreshPlaylists,)).start()
+    def __refreshPlaylists(self, cli):
+        self.logger.debug("refreshPlaylists()")
+        playlists = {}
+        playlists = cli.listplaylists()
+        wx.PostEvent(self.window, MpdPlaylistsEvent(songs))
+    
+    """"""
+    def getAlbumArt(self, songid):
+        threading.Thread(target=self.connection.execute, args=(self.__getAlbumArt, songid)).start()
+    def __getAlbumArt(self, cli, songid):
+        self.logger.debug("getAlbumArt()")
+        album_art = {}
+        album_art = cli.albumart(songid)
+        wx.PostEvent(self.window, MpdAlbumArtEvent(songid, album_art))
 
     """Play the queue position"""
     def playQueuePos(self, queue_pos):
@@ -344,7 +378,7 @@ class MpdCmdFrame(wx.Frame):
         self.preferences = self.loadPreferences()
 
         # init mpd
-        self.mpd = MpdController(self, self.preferences['host'], self.preferences['port'])
+        self.mpd = MpdController(self, self.preferences.get('host', ''), self.preferences.get('port', ''), self.preferences.get('username', ''), self.preferences.get('password', ''))
 
         self.Bind(EVT_MPD_CONNECTION, self.OnConnectionChanged)
         self.Bind(EVT_MPD_STATS, self.OnStatsChanged)
@@ -441,7 +475,7 @@ class MpdCmdFrame(wx.Frame):
     def loadPreferences(self):
         if os.path.isfile(self.preferences_file) == False:
             with open(self.preferences_file, 'w') as file:
-                preferences = {"host":"","port":""}
+                preferences = {"host":"","port":"","username":"","password":""}
                 file.write(json.dumps(preferences))
         with open(self.preferences_file, 'r') as f:
             return json.loads(f.read())
@@ -713,14 +747,26 @@ class MpdPreferencesFrame(wx.Frame):
         hostLabel = wx.StaticText(panel, label='Host')
         sizer.Add(hostLabel, 0, wx.EXPAND|wx.ALL, 1)
 
-        hostText = wx.TextCtrl(panel, value=self.preferences['host'])
+        hostText = wx.TextCtrl(panel, value=self.preferences.get('host', ''))
         sizer.Add(hostText, 0, wx.EXPAND|wx.ALL, 1)
 
         portLabel = wx.StaticText(panel, label='Port')
         sizer.Add(portLabel, 0, wx.EXPAND|wx.ALL, 1)
 
-        portText = wx.TextCtrl(panel, value=self.preferences['port'])
+        portText = wx.TextCtrl(panel, value=self.preferences.get('port', ''))
         sizer.Add(portText, 0, wx.EXPAND|wx.ALL, 1)
+
+        usernameLabel = wx.StaticText(panel, label='Username')
+        sizer.Add(usernameLabel, 0, wx.EXPAND|wx.ALL, 1)
+
+        usernameText = wx.TextCtrl(panel, value=self.preferences.get('username', ''))
+        sizer.Add(usernameText, 0, wx.EXPAND|wx.ALL, 1)
+
+        passwordLabel = wx.StaticText(panel, label='Password')
+        sizer.Add(passwordLabel, 0, wx.EXPAND|wx.ALL, 1)
+
+        passwordText = wx.TextCtrl(panel, value=self.preferences.get('password', ''))
+        sizer.Add(passwordText, 0, wx.EXPAND|wx.ALL, 1)
 
         cancelButton = wx.Button(panel, label="Cancel")
         self.Bind(wx.EVT_BUTTON, self.OnCancel, cancelButton)
