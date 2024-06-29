@@ -281,13 +281,20 @@ class MpdController():
         wx.PostEvent(self.window, MpdPlaylistsEvent(playlists))
     
     """"""
-    def refreshAlbumArt(self, songid) -> None:
-        threading.Thread(target=self.connection.execute, args=(self.__refreshAlbumArt, songid)).start()
-    def __refreshAlbumArt(self, cli, songid) -> None:
+    def refreshAlbumArt(self, songid, file) -> None:
+        threading.Thread(target=self.connection.execute, args=(self.__refreshAlbumArt, songid, file)).start()
+    def __refreshAlbumArt(self, cli, songid, file) -> None:
         self.logger.debug("refreshAlbumArt()")
         album_art = {}
-        album_art = cli.albumart(songid)
-        wx.PostEvent(self.window, MpdAlbumArtEvent(songid, album_art))
+        offset = 0
+        album_art = {'size':'1','binary':'','data':b''}
+        data = b''
+        while offset < int(album_art['size']):
+            album_art = cli.albumart(file, offset)
+            offset += int(album_art['binary'])
+            data += album_art['data']
+        self.__saveAlbumArt(songid, data)
+        wx.PostEvent(self.window, MpdAlbumArtEvent(songid))
 
     """Play the queue position"""
     def playQueuePos(self, queue_pos) -> None:
@@ -350,31 +357,40 @@ class MpdController():
         cli.update()
     
     """"""
-    def getDefaultAlbumArt(self) -> wx.Image:
-        path = os.path.join(os.path.curdir, 'mpdcmd', 'icons', "mpd.png")
-        return wx.Image(path, type=wx.BITMAP_TYPE_PNG).ConvertToBitmap()
+    def __saveAlbumArt(self, songid, data):
+        ext, typ = self.__getFileExtension(data)
+        orig_path = self.__getArtPath('albumart', songid, ext)
+        with open(orig_path, 'wb') as f:
+            f.write(data)
+        if typ != wx.BITMAP_TYPE_PNG:
+            orig_img = wx.Image(orig_path, type=typ)
+            new_path = self.__getArtPath('albumart', songid, 'png')
+            orig_img.SaveFile(new_path, wx.BITMAP_TYPE_PNG)
+            os.remove(orig_path)
+
+    """"""
+    def __getFileExtension(self, data: str) -> None:
+        if data.startswith(bytes.fromhex('ffd8ffe0')):
+            return ('jpg', wx.BITMAP_TYPE_JPEG)
+        if data.startswith(bytes.fromhex('89504e47')):
+            return ('png', wx.BITMAP_TYPE_PNG)
+        raise Exception('Unhandled file type %s' % data[:5])
+
+    """"""
+    def __getArtPath(self, folder, songid, ext) -> str:
+        return os.path.join(os.path.curdir, 'mpdcmd', folder, "%s.%s" % (songid, ext))
+
+    """"""
+    def getDefaultAlbumArt(self) -> wx.Bitmap:
+        path = self.__getArtPath('icons', 'icon', 'png')
+        return wx.Image(path, type=wx.BITMAP_TYPE_PNG).Scale(80, 80).ConvertToBitmap()
     
     """"""
-    def getAlbumArt(self, songid) -> wx.Image:
-        path = os.path.join(os.path.curdir, 'mpdcmd', 'icons', "%s.png" % songid)
+    def getAlbumArt(self, songid) -> wx.Bitmap:
+        path = self.__getArtPath('albumart', songid, 'png')
         if os.path.isfile(path):
-            return wx.Image(path, type=wx.BITMAP_TYPE_PNG).ConvertToBitmap()
+            return wx.Image(path, type=wx.BITMAP_TYPE_PNG).Scale(80, 80).ConvertToBitmap()
         return self.getDefaultAlbumArt()
-
-
-######
-
-#    """Fetch albumart if required"""
-#    def fetchAlbumArt(self) -> None:
-#        if self.albumArtExists()
-#
-    #"""Get the album art for song id"""
-    #def getAlbumArt(self, song_id) -> wx.Bitmap:
-    #"""Get the current album art"""
-    #def getCurrentAlbumArt(self) -> wx.Bitmap:
-    #    print(self.current_song)
-    #    return self.getAlbumArt(self.current_song.get('id', ''))
-
 
 """"""
 class MpdIdleThread(threading.Thread):
@@ -697,15 +713,16 @@ class MpdCmdFrame(wx.Frame):
         # TODO: update playlists list
     """MPD albumart changed"""
     def OnAlbumArtChanged(self, event: MpdAlbumArtEvent) -> None:
-        albumart = event.GetValue()
-        self.logger.info("Albumart changed %s" % albumart)
-        # TODO: update album art
+        songid = event.GetValue()
+        self.logger.info("Albumart changed %s" % songid)
+        bitmap = self.mpd.getAlbumArt(self.current_song.get('id', ''))
+        self.art.Bitmap = bitmap
 
     """MPD current song changed"""
     def OnCurrentSongChanged(self, event: MpdCurrentSongEvent) -> None:
         self.current_song = event.GetValue()
         self.logger.info("Song changed %s" % self.current_song)
-        self.mpd.refreshAlbumArt(self.current_song.get('song_id', ''))
+        self.mpd.refreshAlbumArt(self.current_song.get('id', ''), self.current_song.get('file', ''))
         self.updateCurrentSong()
     """Albums changed"""
     def OnAlbumsChanged(self, event: MpdAlbumsEvent) -> None:
@@ -786,7 +803,7 @@ class MpdCmdFrame(wx.Frame):
             else:
                 self.queueCtrl.SetItem(s, 0, ' ')
         notification = wx.adv.NotificationMessage("MPDCMD", "%s. %s - %s\r\n%s" % (self.current_song.get('track', '?'), self.current_song.get('artist', '?'), self.current_song.get('title', '?'), self.current_song.get('album', '?')))
-        notification.SetIcon(wx.Icon(self.mpd.getAlbumArt(self.current_song.get('songid', ''))))
+        notification.SetIcon(wx.Icon(self.mpd.getAlbumArt(self.current_song.get('id', ''))))
         notification.Show(5)
         self.currentSongText.SetLabel("%s. %s - %s (%s)" % (self.current_song.get('track', '?'), self.current_song.get('artist', '?'), self.current_song.get('title', '?'), self.current_song.get('album', '?')))
         self.updateStatusBarText()
