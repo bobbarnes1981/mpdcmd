@@ -96,6 +96,11 @@ class MpdConnection():
         self.username = username
         self.password = password
         
+        if not self.host:
+            self.host = '127.0.0.1'
+        if not self.port:
+            self.port = '6600'
+
         self.logger = logging.getLogger(type(self).__name__)
         self.logger.info("Starting %s" % type(self).__name__)
 
@@ -114,7 +119,6 @@ class MpdConnection():
                 connection_status = "Connected"
                 self.logger.debug(connection_status)
                 func(client, *args)
-                # TODO: without host config idle constantly requests FIXME
         except musicpd.MPDError as e:
             connection_status = "Connection error"
             self.logger.warning("Connection error %s" % func.__name__)
