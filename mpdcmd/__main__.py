@@ -147,7 +147,7 @@ class MpdConnection():
 
     """Execute the provided function with a connected client"""
     def execute(self, func: callable, *args):
-        musicpd.CONNECTION_TIMEOUT = 1
+        #musicpd.CONNECTION_TIMEOUT = 1
         os.environ['MPD_HOST'] = self.host
         os.environ['MPD_PORT'] = self.port
         os.environ['MPD_USERNAME'] = self.username
