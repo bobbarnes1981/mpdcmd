@@ -1,9 +1,9 @@
 import base64
 import json
 import logging
-import musicpd
 import os
 import threading
+import musicpd
 import wx
 import wx.adv
 
