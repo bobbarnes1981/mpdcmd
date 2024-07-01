@@ -248,7 +248,7 @@ class MpdController():
     def __refreshAlbums(self, cli: musicpd.MPDClient) -> None:
         self.logger.debug("refreshAlbums()")
         albums = []
-        albums_result = cli.list('AlbumSort')
+        albums_result = cli.list('Album')
         for album in albums_result:
             tracks = cli.find('(Album == "%s")' % album)
             is_various = False
