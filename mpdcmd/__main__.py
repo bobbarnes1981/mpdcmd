@@ -659,12 +659,13 @@ class MpdCmdFrame(wx.Frame):
 
         self.albumCtrl = wx.ListCtrl(notebook)
         self.albumCtrl.SetWindowStyleFlag(wx.LC_REPORT)
-        self.albumCtrl.InsertColumn(0, "Album", width=150)
-        self.albumCtrl.InsertColumn(1, "Artist", width=100)
-        self.albumCtrl.InsertColumn(2, "Tracks", width=50)
-        self.albumCtrl.InsertColumn(3, "Duration", width=50)
+        self.albumCtrl.InsertColumn(0, "", width=20)
+        self.albumCtrl.InsertColumn(1, "Album", width=150)
+        self.albumCtrl.InsertColumn(2, "Artist", width=100)
+        self.albumCtrl.InsertColumn(3, "Tracks", width=50)
+        self.albumCtrl.InsertColumn(4, "Duration", width=50)
         try:
-            self.albumCtrl.SetColumnsOrder([0,1,2,3])
+            self.albumCtrl.SetColumnsOrder([0,1,2,3,4])
         except NotImplementedError:
             pass
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnAlbumSelect, self.albumCtrl)
@@ -842,7 +843,7 @@ class MpdCmdFrame(wx.Frame):
         self.logger.info("Albums changed %d" % len(albums))
         self.albumCtrl.DeleteAllItems()
         for album in albums:
-            self.albumCtrl.Append([album.get('album', ''),album.get('artist', ''),album.get('tracks', ''),self.secondsToTime(float(album.get('duration', '')))])
+            self.albumCtrl.Append(['', album.get('album', ''),album.get('artist', ''),album.get('tracks', ''),self.secondsToTime(float(album.get('duration', '')))])
     """Queue changed"""
     def OnQueueChanged(self, event: MpdQueueEvent) -> None:
         queue = event.GetValue()
@@ -876,7 +877,7 @@ class MpdCmdFrame(wx.Frame):
 
     """Album item selected"""
     def OnAlbumSelect(self, event: wx.ListEvent) -> None:
-        album_name = self.albumCtrl.GetItem(self.albumCtrl.GetFirstSelected(), col=0).GetText()
+        album_name = self.albumCtrl.GetItem(self.albumCtrl.GetFirstSelected(), col=1).GetText()
         self.logger.info("Album selected %s" % album_name)
         self.mpd.playAlbumTag(album_name)
     """Queue item selected"""
@@ -1016,12 +1017,12 @@ class MpdCmdFrame(wx.Frame):
 
     """"""
     def OnMenuAlbumsAppend(self, event) -> None:
-        album_name = self.albumCtrl.GetItem(self.albumCtrl.GetFirstSelected(), col=0).GetText()
+        album_name = self.albumCtrl.GetItem(self.albumCtrl.GetFirstSelected(), col=1).GetText()
         self.logger.info("Albums item append %s" % album_name)
         self.mpd.appendAlbumTag(album_name)
     """"""
     def OnMenuAlbumsPlay(self, event) -> None:
-        album_name = self.albumCtrl.GetItem(self.albumCtrl.GetFirstSelected(), col=0).GetText()
+        album_name = self.albumCtrl.GetItem(self.albumCtrl.GetFirstSelected(), col=1).GetText()
         self.logger.info("Albums item play %s" % album_name)
         self.mpd.playAlbumTag(album_name)
 
