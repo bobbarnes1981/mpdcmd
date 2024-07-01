@@ -962,7 +962,7 @@ class MpdCmdFrame(wx.Frame):
             self.playing = True
     """Update the volume slider value"""
     def updateVolume(self) -> None:
-        if self.volume_changing == False:
+        if not self.volume_changing:
             self.currentVol.SetValue(int(self.status.get('volume', '0')))
     """Update song time"""
     def updateSongTime(self) -> None:
