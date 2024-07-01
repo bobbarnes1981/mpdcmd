@@ -1,3 +1,4 @@
+import base64
 import json
 import logging
 import musicpd
@@ -413,7 +414,9 @@ class MpdController():
         return os.path.join(os.path.curdir, 'mpdcmd', folder, "%s.%s" % (file, ext))
     """"""
     def __getArtFile(self, artist, album) -> str:
-        return '%s-%s' % (artist, album)
+        file = '%s-%s' % (artist, album)
+        # lazy fix for invalid filename characters
+        return base64.b64encode(file.encode())
     """"""
     def getDefaultAlbumArt(self) -> wx.Bitmap:
         path = self.__getArtPath('icons', 'icon', 'png')
