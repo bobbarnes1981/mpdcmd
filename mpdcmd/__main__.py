@@ -214,9 +214,9 @@ class MpdController():
     def refreshStats(self) -> None:
         threading.Thread(
             target=self.connection.execute,
-            args=(self.__refreshStats,)).start()
-    def __refreshStats(self, cli: musicpd.MPDClient) -> None:
-        self.logger.debug("refreshStats()")
+            args=(self.__refresh_stats,)).start()
+    def __refresh_stats(self, cli: musicpd.MPDClient) -> None:
+        self.logger.debug("refresh_stats()")
         stats = {}
         stats = cli.stats()
         if self.stats != stats:
@@ -227,9 +227,9 @@ class MpdController():
     def refreshStatus(self) -> None:
         threading.Thread(
             target=self.connection.execute,
-            args=(self.__refreshStatus,)).start()
-    def __refreshStatus(self, cli: musicpd.MPDClient) -> None:
-        self.logger.debug("refreshStatus()")
+            args=(self.__refresh_status,)).start()
+    def __refresh_status(self, cli: musicpd.MPDClient) -> None:
+        self.logger.debug("refresh_status()")
         status = {}
         status = cli.status()
         if self.status != status:
@@ -240,9 +240,9 @@ class MpdController():
     def refreshCurrentSong(self) -> None:
         threading.Thread(
             target=self.connection.execute,
-            args=(self.__refreshCurrentSong,)).start()
-    def __refreshCurrentSong(self, cli: musicpd.MPDClient) -> None:
-        self.logger.debug("refreshCurrentSong()")
+            args=(self.__refresh_current_song,)).start()
+    def __refresh_current_song(self, cli: musicpd.MPDClient) -> None:
+        self.logger.debug("refresh_current_song()")
         songid = self.status.get('songid', None)
         self.logger.debug("songid '%s'", songid)
         if songid:
@@ -256,9 +256,9 @@ class MpdController():
     def refreshAlbums(self) -> None:
         threading.Thread(
             target=self.connection.execute,
-            args=(self.__refreshAlbums,)).start()
-    def __refreshAlbums(self, cli: musicpd.MPDClient) -> None:
-        self.logger.debug("refreshAlbums()")
+            args=(self.__refresh_albums,)).start()
+    def __refresh_albums(self, cli: musicpd.MPDClient) -> None:
+        self.logger.debug("refresh_albums()")
         albums = []
         albums_result = cli.list('Album')
         for album in albums_result:
@@ -280,9 +280,9 @@ class MpdController():
     def refreshQueue(self) -> None:
         threading.Thread(
             target=self.connection.execute,
-            args=(self.__refreshQueue,)).start()
-    def __refreshQueue(self, cli: musicpd.MPDClient) -> None:
-        self.logger.debug("refreshQueue()")
+            args=(self.__refresh_queue,)).start()
+    def __refresh_queue(self, cli: musicpd.MPDClient) -> None:
+        self.logger.debug("refresh_queue()")
         queue = {}
         queue = cli.playlistid()
         if self.queue != queue:
@@ -293,9 +293,9 @@ class MpdController():
     def refreshSongs(self) -> None:
         threading.Thread(
             target=self.connection.execute,
-            args=(self.__refreshSongs,)).start()
-    def __refreshSongs(self, cli: musicpd.MPDClient) -> None:
-        self.logger.debug("refreshSongs()")
+            args=(self.__refresh_songs,)).start()
+    def __refresh_songs(self, cli: musicpd.MPDClient) -> None:
+        self.logger.debug("refresh_songs()")
         songs = {}
         songs = cli.listallinfo()
         filtered = list(filter(lambda song: song.get('directory', '') == '', songs))
@@ -305,9 +305,9 @@ class MpdController():
     def refreshPlaylists(self) -> None:
         threading.Thread(
             target=self.connection.execute,
-            args=(self.__refreshPlaylists,)).start()
-    def __refreshPlaylists(self, cli: musicpd.MPDClient) -> None:
-        self.logger.debug("refreshPlaylists()")
+            args=(self.__refresh_playlists,)).start()
+    def __refresh_playlists(self, cli: musicpd.MPDClient) -> None:
+        self.logger.debug("refresh_playlists()")
         playlists = {}
         playlists = cli.listplaylists()
         wx.PostEvent(self.window, MpdPlaylistsEvent(playlists))
@@ -316,9 +316,9 @@ class MpdController():
     def refreshAlbumArt(self, artist, album, file) -> None:
         threading.Thread(
             target=self.connection.execute,
-            args=(self.__refreshAlbumArt, artist, album, file)).start()
-    def __refreshAlbumArt(self, cli: musicpd.MPDClient, artist, album, file) -> None:
-        self.logger.debug("refreshAlbumArt()")
+            args=(self.__refresh_albumart, artist, album, file)).start()
+    def __refresh_albumart(self, cli: musicpd.MPDClient, artist, album, file) -> None:
+        self.logger.debug("refresh_albumart()")
         album_art = {}
         offset = 0
         album_art = {'size':'1','binary':'','data':b''}
@@ -536,11 +536,11 @@ class MpdIdleThread(threading.Thread):
         self.logger.info("Starting %s", type(self).__name__)
 
         self.actions = {
-            'player': self.__actionPlayer,
-            'mixer': self.__actionMixer,
-            'playlist': self.__actionPlaylist,
-            'update': self.__actionUpdate,
-            'database': self.__actionDatabase,
+            'player': self.__action_player,
+            'mixer': self.__action_mixer,
+            'playlist': self.__action_playlist,
+            'update': self.__action_update,
+            'database': self.__action_database,
         }
         self.running = False
         self.socket_timeout = 10
@@ -572,31 +572,31 @@ class MpdIdleThread(threading.Thread):
             self.logger.debug('Idle timeout after %ds', self.socket_timeout)
 
     """"""
-    def __actionPlayer(self):
+    def __action_player(self):
         # start/stop/seek or changed tags of current song
         self.logger.debug('Player action')
         wx.PostEvent(self.parent, MpdIdlePlayerEvent())
 
     """"""
-    def __actionMixer(self):
+    def __action_mixer(self):
         # volume has been changed
         self.logger.debug('Mixer action')
         wx.PostEvent(self.parent, MpdIdleMixerEvent())
 
     """"""
-    def __actionPlaylist(self):
+    def __action_playlist(self):
         # queue has been modified
         self.logger.debug('Playlist action')
         wx.PostEvent(self.parent, MpdIdlePlaylistEvent())
 
     """"""
-    def __actionUpdate(self):
+    def __action_update(self):
         # update has started or finished
         self.logger.debug('Update action')
         wx.PostEvent(self.parent, MpdIdleUpdateEvent())
 
     """"""
-    def __actionDatabase(self):
+    def __action_database(self):
         # database was modified
         self.logger.debug('Database action')
         wx.PostEvent(self.parent, MpdIdleDatabaseEvent())
@@ -613,7 +613,7 @@ class MpdCmdFrame(wx.Frame):
         self.logger.info("Starting %s", type(self).__name__)
 
         self.preferences_file = os.path.join(os.path.curdir, 'preferences.json')
-        self.preferences = self.loadPreferences()
+        self.preferences = self.load_preferences()
 
         # init mpd
         self.mpd = MpdController(
@@ -727,7 +727,7 @@ class MpdCmdFrame(wx.Frame):
         self.mpd.refreshSongs()
 
     """Load preferences"""
-    def loadPreferences(self):
+    def load_preferences(self):
         if os.path.isfile(self.preferences_file) is False:
             with open(self.preferences_file, 'w') as file:
                 preferences = {"host":"","port":"","username":"","password":"","notifications":True}
@@ -1287,7 +1287,7 @@ class MpdPreferencesFrame(wx.Frame):
     def OnCancel(self, _event: wx.PyCommandEvent) -> None:
         self.logger.debug("OnCancel()")
 
-"""Main function"""
+"""Main function for mpdcmd"""
 def main():
     app = wx.App()
     frame = MpdCmdFrame(None, title='MPDCMD', size=(640,480))
