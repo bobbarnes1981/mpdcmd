@@ -672,7 +672,7 @@ class MpdCmdFrame(wx.Frame):
     def loadPreferences(self):
         if os.path.isfile(self.preferences_file) == False:
             with open(self.preferences_file, 'w') as file:
-                preferences = {"host":"","port":"","username":"","password":""}
+                preferences = {"host":"","port":"","username":"","password":"","notifications":True}
                 file.write(json.dumps(preferences))
         with open(self.preferences_file, 'r') as f:
             return json.loads(f.read())
@@ -983,9 +983,10 @@ class MpdCmdFrame(wx.Frame):
         self.updateStatusBarText()
     """Show notification"""
     def showNotification(self) -> None:
-        notification = wx.adv.NotificationMessage("MPDCMD", "%s. %s - %s\r\n%s" % (self.current_song.get('track', '?'), self.current_song.get('artist', '?'), self.current_song.get('title', '?'), self.current_song.get('album', '?')))
-        notification.SetIcon(wx.Icon(self.mpd.getAlbumArt(self.current_song.get('artist', ''), self.current_song.get('album', ''))))
-        notification.Show(5)
+        if self.preferences.get('notifications', True):
+            notification = wx.adv.NotificationMessage("MPDCMD", "%s. %s - %s\r\n%s" % (self.current_song.get('track', '?'), self.current_song.get('artist', '?'), self.current_song.get('title', '?'), self.current_song.get('album', '?')))
+            notification.SetIcon(wx.Icon(self.mpd.getAlbumArt(self.current_song.get('artist', ''), self.current_song.get('album', ''))))
+            notification.Show(5)
     """Set current album art"""
     def setCurrentAlbumArt(self) -> None:
         bitmap = self.mpd.getAlbumArt(self.current_song.get('artist', ''), self.current_song.get('album', ''))
@@ -1027,7 +1028,7 @@ class MpdCmdFrame(wx.Frame):
     """Preferences menu selected"""
     def OnMenuPref(self, event: wx.CommandEvent) -> None:
         self.logger.debug("OnMenuPref()")
-        preferences = MpdPreferencesFrame(self.preferences, self, title='Preferences', size=(320,270))
+        preferences = MpdPreferencesFrame(self.preferences, self, title='Preferences', size=(320,300))
         preferences.Show()
     """About menu selected"""
     def OnMenuAbout(self, event: wx.CommandEvent) -> None:
@@ -1145,6 +1146,13 @@ class MpdPreferencesFrame(wx.Frame):
 
         passwordText = wx.TextCtrl(panel, value=self.preferences.get('password', ''))
         sizer.Add(passwordText, 0, wx.EXPAND|wx.ALL, 1)
+
+        notificationsLabel = wx.StaticText(panel, label='Notifications')
+        sizer.Add(notificationsLabel, 0, wx.EXPAND|wx.ALL, 1)
+
+        notificationsCheck = wx.CheckBox(panel)
+        notificationsCheck.SetValue(self.preferences.get('notifications', True))
+        sizer.Add(notificationsCheck, 0, wx.EXPAND|wx.ALL, 1)
 
         cancelButton = wx.Button(panel, label="Cancel")
         self.Bind(wx.EVT_BUTTON, self.OnCancel, cancelButton)
