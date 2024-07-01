@@ -395,7 +395,9 @@ class MpdController():
 
     """"""
     def __getFileExtension(self, data: str) -> None:
-        if data.startswith(bytes.fromhex('ffd8ffe0')):
+        if data.startswith(bytes.fromhex('ffd8ffe0')): # JFIF
+            return ('jpg', wx.BITMAP_TYPE_JPEG)
+        if data.startswith(bytes.fromhex('ffd8ffe1')): # EXIF
             return ('jpg', wx.BITMAP_TYPE_JPEG)
         if data.startswith(bytes.fromhex('89504e47')):
             return ('png', wx.BITMAP_TYPE_PNG)
