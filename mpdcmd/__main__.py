@@ -436,7 +436,7 @@ class MpdController():
     def __saveAlbumArt(self, artist, album, data):
         ext, typ = self.__getFileExtension(data)
         orig_path = self.__getArtPath(self.art_folder, self.__getArtFile(artist, album), ext)
-        with open(orig_path, 'wb') as f:
+        with open(orig_path, 'w+b') as f:
             f.write(data)
         if typ != wx.BITMAP_TYPE_PNG:
             orig_img = wx.Image(orig_path, type=typ)
@@ -466,7 +466,7 @@ class MpdController():
     def __getArtFile(self, artist, album) -> str:
         file = '%s-%s' % (artist, album)
         # lazy fix for invalid filename characters
-        return base64.b64encode(file.encode())
+        return base64.urlsafe_b64encode(file.encode())
     """"""
     def getDefaultAlbumArt(self) -> wx.Bitmap:
         path = self.__getArtPath('icons', 'icon', 'png')
