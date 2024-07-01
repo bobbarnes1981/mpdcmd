@@ -251,11 +251,12 @@ class MpdController():
         for album in albums_result:
             tracks = cli.find('(Album == "%s")' % album)
             is_various = False
+            duration = 0
             for t in range(1, len(tracks)):
+                duration += float(tracks[t]['duration'])
                 if tracks[t-1]['artist'] != tracks[t]['artist']:
                     is_various = True
-                    break
-            albums.append([album, 'VA' if is_various else tracks[0]['artist'], len(tracks)])
+            albums.append({'album': album, 'artist': 'VA' if is_various else tracks[0]['artist'], 'tracks': len(tracks), 'duration': duration})
         wx.PostEvent(self.window, MpdAlbumsEvent(albums))
 
     """Refresh the queue"""
@@ -656,8 +657,9 @@ class MpdCmdFrame(wx.Frame):
         self.albumCtrl.InsertColumn(0, "Album", width=150)
         self.albumCtrl.InsertColumn(1, "Artist", width=100)
         self.albumCtrl.InsertColumn(2, "Tracks", width=50)
+        self.albumCtrl.InsertColumn(3, "Duration", width=50)
         try:
-            self.albumCtrl.SetColumnsOrder([0,1,2])
+            self.albumCtrl.SetColumnsOrder([0,1,2,3])
         except NotImplementedError:
             pass
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnAlbumSelect, self.albumCtrl)
@@ -778,7 +780,7 @@ class MpdCmdFrame(wx.Frame):
         self.songsCtrl.DeleteAllItems()
         for song in songs:
             prefix = ''
-            self.songsCtrl.Append([prefix,song.get('album', ''),song.get('artist', ''),song.get('track', ''),song.get('title', ''),song.get('duration', ''),song.get('file', '')])
+            self.songsCtrl.Append([prefix,song.get('album', ''),song.get('artist', ''),song.get('track', ''),song.get('title', ''),self.secondsToTime(float(song.get('duration', ''))),song.get('file', '')])
     """MPD playlists changed"""
     def OnPlaylistsChanged(self, event: MpdPlaylistsEvent) -> None:
         playlists = event.GetValue()
@@ -835,7 +837,7 @@ class MpdCmdFrame(wx.Frame):
         self.logger.info("Albums changed %d" % len(albums))
         self.albumCtrl.DeleteAllItems()
         for album in albums:
-            self.albumCtrl.Append(album)
+            self.albumCtrl.Append([album.get('album', ''),album.get('artist', ''),album.get('tracks', ''),self.secondsToTime(float(album.get('duration', '')))])
     """Queue changed"""
     def OnQueueChanged(self, event: MpdQueueEvent) -> None:
         queue = event.GetValue()
@@ -845,7 +847,7 @@ class MpdCmdFrame(wx.Frame):
             prefix = ''
             if self.current_song.get('pos', '') == str(s):
                 prefix = '>'
-            self.queueCtrl.Append([prefix,queue[s]['id'],queue[s]['pos'],queue[s]['album'],queue[s]['artist'],queue[s]['track'],queue[s]['title'],queue[s]['duration']])
+            self.queueCtrl.Append([prefix,queue[s]['id'],queue[s]['pos'],queue[s]['album'],queue[s]['artist'],queue[s]['track'],queue[s]['title'],self.secondsToTime(float(queue[s]['duration']))])
 
     """Idle player event"""
     def OnIdlePlayer(self, event: MpdIdlePlayerEvent) -> None:
