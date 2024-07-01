@@ -176,6 +176,8 @@ class MpdController():
         self.port = port
         self.username = username
         self.password = password
+
+        self.art_folder = 'albumart'
         
         self.logger = logging.getLogger(type(self).__name__)
         self.logger.info("Starting %s" % type(self).__name__)
@@ -188,6 +190,8 @@ class MpdController():
         self.current_song = {}
 
         self.idle_thread = None
+
+        self.__createArtFolder(self.art_folder)
 
     """Start the background threads"""
     def start(self) -> None:
@@ -379,12 +383,12 @@ class MpdController():
     """"""
     def __saveAlbumArt(self, artist, album, data):
         ext, typ = self.__getFileExtension(data)
-        orig_path = self.__getArtPath('albumart', self.__getArtFile(artist, album), ext)
+        orig_path = self.__getArtPath(self.art_folder, self.__getArtFile(artist, album), ext)
         with open(orig_path, 'wb') as f:
             f.write(data)
         if typ != wx.BITMAP_TYPE_PNG:
             orig_img = wx.Image(orig_path, type=typ)
-            new_path = self.__getArtPath('albumart', self.__getArtFile(artist, album), 'png')
+            new_path = self.__getArtPath(self.art_folder, self.__getArtFile(artist, album), 'png')
             orig_img.SaveFile(new_path, wx.BITMAP_TYPE_PNG)
             os.remove(orig_path)
 
@@ -396,6 +400,11 @@ class MpdController():
             return ('png', wx.BITMAP_TYPE_PNG)
         raise Exception('Unhandled file type %s' % data[:5])
 
+    """"""
+    def __createArtFolder(self, folder) -> None:
+        path = os.path.join(os.path.curdir, 'mpdcmd', folder)
+        if not os.path.exists(path):
+            os.makedirs(path)
     """"""
     def __getArtPath(self, folder, file, ext) -> str:
         return os.path.join(os.path.curdir, 'mpdcmd', folder, "%s.%s" % (file, ext))
@@ -409,7 +418,7 @@ class MpdController():
     
     """"""
     def getAlbumArt(self, artist, album) -> wx.Bitmap:
-        path = self.__getArtPath('albumart', self.__getArtFile(artist, album), 'png')
+        path = self.__getArtPath(self.art_folder, self.__getArtFile(artist, album), 'png')
         if os.path.isfile(path):
             return wx.Image(path, type=wx.BITMAP_TYPE_PNG).Scale(80, 80).ConvertToBitmap()
         return self.getDefaultAlbumArt()
