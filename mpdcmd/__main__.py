@@ -884,28 +884,28 @@ class MpdCmdFrame(wx.Frame):
         self.Bind(wx.EVT_COMMAND_SCROLL_THUMBRELEASE, self.OnVolChangeEnd, self.current_vol)
         tr_hori.Add(self.current_vol, 0, wx.EXPAND|wx.ALL, 1)
         
-        repeat_label = wx.StaticText(transport, label='Repeat')
+        repeat_label = wx.StaticText(transport, label='Rpt')
         tr_hori.Add(repeat_label, 0, wx.EXPAND|wx.ALL, 1)
         self.repeat_check = wx.CheckBox(transport)
         self.repeat_check.SetValue(False)
         self.Bind(wx.EVT_CHECKBOX, self.OnRepeatChanged, self.repeat_check)
         tr_hori.Add(self.repeat_check, 0, wx.EXPAND|wx.ALL, 1)
 
-        random_label = wx.StaticText(transport, label='Random')
+        random_label = wx.StaticText(transport, label='Rnd')
         tr_hori.Add(random_label, 0, wx.EXPAND|wx.ALL, 1)
         self.random_check = wx.CheckBox(transport)
         self.random_check.SetValue(False)
         self.Bind(wx.EVT_CHECKBOX, self.OnRandomChanged, self.random_check)
         tr_hori.Add(self.random_check, 0, wx.EXPAND|wx.ALL, 1)
 
-        single_label = wx.StaticText(transport, label='Single')
+        single_label = wx.StaticText(transport, label='Sgl')
         tr_hori.Add(single_label, 0, wx.EXPAND|wx.ALL, 1)
         self.single_check = wx.CheckBox(transport)
         self.single_check.SetValue(False)
         self.Bind(wx.EVT_CHECKBOX, self.OnSingleChanged, self.single_check)
         tr_hori.Add(self.single_check, 0, wx.EXPAND|wx.ALL, 1)
 
-        consume_label = wx.StaticText(transport, label='Consume')
+        consume_label = wx.StaticText(transport, label='Cns')
         tr_hori.Add(consume_label, 0, wx.EXPAND|wx.ALL, 1)
         self.consume_check = wx.CheckBox(transport)
         self.consume_check.SetValue(False)
@@ -1126,7 +1126,7 @@ class MpdCmdFrame(wx.Frame):
     def updateStatus(self) -> None:
         self.updatePlayPause()
         self.updateVolume()
-        self.updateCheckboxes()
+        self.updateOptions()
         self.updateSongTime()
     """Update play/pause button label"""
     def updatePlayPause(self) -> None:
@@ -1141,7 +1141,7 @@ class MpdCmdFrame(wx.Frame):
         if not self.volume_changing:
             self.current_vol.SetValue(int(self.status.get('volume', '0')))
     """"""
-    def updateCheckboxes(self) -> None:
+    def updateOptions(self) -> None:
         self.repeat_check.SetValue(bool(self.status.get('repeat', '0') == '1'))
         self.random_check.SetValue(bool(self.status.get('random', '0') == '1'))
         self.single_check.SetValue(bool(self.status.get('repeat', '0') == '1'))
