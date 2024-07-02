@@ -471,6 +471,42 @@ class MpdController():
         self.logger.debug("setVolume()")
         cli.setvol(volume)
 
+    """Set repeat"""
+    def setRepeat(self, repeat) -> None:
+        threading.Thread(
+            target=self.connection.execute,
+            args=(self.__setRepeat, repeat)).start()
+    def __setRepeat(self, cli: musicpd.MPDClient, repeat) -> None:
+        self.logger.debug("setRepeat()")
+        cli.repeat('1' if repeat else '0')
+
+    """Set random"""
+    def setRandom(self, random) -> None:
+        threading.Thread(
+            target=self.connection.execute,
+            args=(self.__setRandom, random)).start()
+    def __setRandom(self, cli: musicpd.MPDClient, random) -> None:
+        self.logger.debug("setRandom()")
+        cli.random('1' if random else '0')
+
+    """Set single"""
+    def setSingle(self, single) -> None:
+        threading.Thread(
+            target=self.connection.execute,
+            args=(self.__setSingle, single)).start()
+    def __setSingle(self, cli: musicpd.MPDClient, single) -> None:
+        self.logger.debug("setSingle()")
+        cli.single('1' if single else '0')
+
+    """Set consume"""
+    def setConsume(self, consume) -> None:
+        threading.Thread(
+            target=self.connection.execute,
+            args=(self.__setConsume, consume)).start()
+    def __setConsume(self, cli: musicpd.MPDClient, consume) -> None:
+        self.logger.debug("setConsume()")
+        cli.consume(consume)
+
     """Update"""
     def update(self) -> None:
         threading.Thread(
@@ -847,6 +883,34 @@ class MpdCmdFrame(wx.Frame):
         self.Bind(wx.EVT_COMMAND_SCROLL_THUMBTRACK, self.OnVolChangeStart, self.current_vol)
         self.Bind(wx.EVT_COMMAND_SCROLL_THUMBRELEASE, self.OnVolChangeEnd, self.current_vol)
         tr_hori.Add(self.current_vol, 0, wx.EXPAND|wx.ALL, 1)
+        
+        repeat_label = wx.StaticText(transport, label='Repeat')
+        tr_hori.Add(repeat_label, 0, wx.EXPAND|wx.ALL, 1)
+        self.repeat_check = wx.CheckBox(transport)
+        self.repeat_check.SetValue(False)
+        self.Bind(wx.EVT_CHECKBOX, self.OnRepeatChanged, self.repeat_check)
+        tr_hori.Add(self.repeat_check, 0, wx.EXPAND|wx.ALL, 1)
+
+        random_label = wx.StaticText(transport, label='Random')
+        tr_hori.Add(random_label, 0, wx.EXPAND|wx.ALL, 1)
+        self.random_check = wx.CheckBox(transport)
+        self.random_check.SetValue(False)
+        self.Bind(wx.EVT_CHECKBOX, self.OnRandomChanged, self.random_check)
+        tr_hori.Add(self.random_check, 0, wx.EXPAND|wx.ALL, 1)
+
+        single_label = wx.StaticText(transport, label='Single')
+        tr_hori.Add(single_label, 0, wx.EXPAND|wx.ALL, 1)
+        self.single_check = wx.CheckBox(transport)
+        self.single_check.SetValue(False)
+        self.Bind(wx.EVT_CHECKBOX, self.OnSingleChanged, self.single_check)
+        tr_hori.Add(self.single_check, 0, wx.EXPAND|wx.ALL, 1)
+
+        consume_label = wx.StaticText(transport, label='Consume')
+        tr_hori.Add(consume_label, 0, wx.EXPAND|wx.ALL, 1)
+        self.consume_check = wx.CheckBox(transport)
+        self.consume_check.SetValue(False)
+        self.Bind(wx.EVT_CHECKBOX, self.OnConsumeChanged, self.consume_check)
+        tr_hori.Add(self.consume_check, 0, wx.EXPAND|wx.ALL, 1)
 
         transport.SetSizer(tr_hori)
         return transport
@@ -1062,6 +1126,7 @@ class MpdCmdFrame(wx.Frame):
     def updateStatus(self) -> None:
         self.updatePlayPause()
         self.updateVolume()
+        self.updateCheckboxes()
         self.updateSongTime()
     """Update play/pause button label"""
     def updatePlayPause(self) -> None:
@@ -1075,6 +1140,12 @@ class MpdCmdFrame(wx.Frame):
     def updateVolume(self) -> None:
         if not self.volume_changing:
             self.current_vol.SetValue(int(self.status.get('volume', '0')))
+    """"""
+    def updateCheckboxes(self) -> None:
+        self.repeat_check.SetValue(bool(self.status.get('repeat', '0') == '1'))
+        self.random_check.SetValue(bool(self.status.get('random', '0') == '1'))
+        self.single_check.SetValue(bool(self.status.get('repeat', '0') == '1'))
+        self.consume_check.SetValue(bool(self.status.get('consume', '0') == '1'))
     """Update song time"""
     def updateSongTime(self) -> None:
         self.elapsed = float(self.status.get('elapsed', '0'))
@@ -1154,6 +1225,18 @@ class MpdCmdFrame(wx.Frame):
         self.volume_changing = True
     def OnVolChangeEnd(self, _event) -> None:
         self.volume_changing = False
+    def OnRepeatChanged(self, _event) -> None:
+        repeat = self.repeat_check.GetValue()
+        self.mpd.setRepeat(repeat)
+    def OnRandomChanged(self, _event) -> None:
+        random = self.random_check.GetValue()
+        self.mpd.setRandom(random)
+    def OnSingleChanged(self, _event) -> None:
+        single = self.single_check.GetValue()
+        self.mpd.setSingle(single)
+    def OnConsumeChanged(self, _event) -> None:
+        consume = self.consume_check.GetValue()
+        self.mpd.setConsume(consume)
 
     """Preferences menu selected"""
     def OnMenuPref(self, _event: wx.CommandEvent) -> None:
