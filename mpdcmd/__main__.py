@@ -10,6 +10,7 @@ from pynput.keyboard import Listener, Key
 
 DEFAULT_OPTION_NOTIFICATIONS = False
 DEFAULT_OPTION_MEDIAKEYS = False
+DEFAULT_OPTION_FETCHALLART = False
 
 logging.basicConfig(
     level=logging.WARN,
@@ -300,6 +301,7 @@ class MpdController():
             args=(self.__fetchAllAlbumArt, songs))
         self.art_thread.start()
     def __fetchAllAlbumArt(self, cli, songs) -> None:
+        self.logger.debug("Fetch all art - start")
         self.art_enabled = True
         for song in songs:
             if self.art_enabled == False:
@@ -314,6 +316,7 @@ class MpdController():
             except:
                 # ignore error and carry on
                 pass
+        self.logger.debug("Fetch all art - end")
 
     """Refresh the queue"""
     def refreshQueue(self) -> None:
@@ -845,7 +848,8 @@ class MpdCmdFrame(wx.Frame):
                     "username":"",
                     "password":"",
                     "notifications":DEFAULT_OPTION_NOTIFICATIONS,
-                    "mediakeys":DEFAULT_OPTION_MEDIAKEYS}
+                    "mediakeys":DEFAULT_OPTION_MEDIAKEYS,
+                    "fetchallart":DEFAULT_OPTION_FETCHALLART}
                 file.write(json.dumps(preferences))
         with open(self.preferences_file, 'r') as f:
             return json.loads(f.read())
@@ -1037,7 +1041,8 @@ class MpdCmdFrame(wx.Frame):
                 song.get('title', ''),
                 self.secondsToTime(float(song.get('duration', ''))),
                 song.get('file', '')])
-        self.mpd.fetchAllAlbumArt(songs)
+        if self.preferences.get('fetchallart', DEFAULT_OPTION_FETCHALLART):
+            self.mpd.fetchAllAlbumArt(songs)
     """MPD playlists changed"""
     def OnPlaylistsChanged(self, event: MpdPlaylistsEvent) -> None:
         playlists = event.GetValue()
@@ -1305,7 +1310,7 @@ class MpdCmdFrame(wx.Frame):
             self.preferences,
             self,
             title='Preferences',
-            size=(320,330))
+            size=(320,390))
         preferences.Show()
     """About menu selected"""
     def OnMenuAbout(self, _event: wx.CommandEvent) -> None:
@@ -1448,6 +1453,14 @@ class MpdPreferencesFrame(wx.Frame):
         mediakeys_check.SetValue(
             self.preferences.get('mediakeys', DEFAULT_OPTION_MEDIAKEYS))
         self.sizer.Add(mediakeys_check, 0, wx.EXPAND|wx.ALL, 1)
+
+        fetchallart_label = wx.StaticText(self.panel, label='Fetch all art')
+        self.sizer.Add(fetchallart_label, 0, wx.EXPAND|wx.ALL, 1)
+
+        fetchallart_check = wx.CheckBox(self.panel)
+        fetchallart_check.SetValue(
+            self.preferences.get('fetchallart', DEFAULT_OPTION_FETCHALLART))
+        self.sizer.Add(fetchallart_check, 0, wx.EXPAND|wx.ALL, 1)
 
         cancel_button = wx.Button(self.panel, label="Cancel")
         self.Bind(wx.EVT_BUTTON, self.OnCancel, cancel_button)
