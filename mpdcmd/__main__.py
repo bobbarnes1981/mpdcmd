@@ -6,6 +6,10 @@ import threading
 import musicpd
 import wx
 import wx.adv
+from pynput.keyboard import Listener, Key
+
+DEFAULT_OPTION_NOTIFICATIONS = False
+DEFAULT_OPTION_MEDIAKEYS = False
 
 logging.basicConfig(
     level=logging.WARN,
@@ -198,7 +202,7 @@ class MpdController():
 
         self.__createArtFolder(self.art_folder)
 
-    """Start the background threads"""
+    """Start the background thread"""
     def start(self) -> None:
         self.logger.info("Starting thread")
         self.idle_thread = MpdIdleThread(self.window, self.connection)
@@ -615,6 +619,12 @@ class MpdCmdFrame(wx.Frame):
         self.preferences_file = os.path.join(os.path.curdir, 'preferences.json')
         self.preferences = self.load_preferences()
 
+        self.kbd_thread = None
+        if self.preferences.get('mediakeys', DEFAULT_OPTION_MEDIAKEYS):
+            self.logger.warn("Keyboard listener (pynput) enabled")
+            self.kbd_thread = Listener(on_press=self.__key_press, on_release=None)
+            self.kbd_thread.start()
+
         # init mpd
         self.mpd = MpdController(
             self,
@@ -717,6 +727,20 @@ class MpdCmdFrame(wx.Frame):
 
         self.refresh()
 
+    def __key_press(self, key) -> None:
+        if key == Key.media_play_pause:
+            self.OnPlay(None)
+        if key == Key.media_next:
+            self.OnNext(None)
+        if key == Key.media_previous:
+            self.OnPrev(None)
+        if key == Key.media_volume_up:
+            self.current_vol.SetValue(self.current_vol.GetValue()+5)
+            self.OnVolChanged(None)
+        if key == Key.media_volume_down:
+            self.current_vol.SetValue(self.current_vol.GetValue()-5)
+            self.OnVolChanged(None)
+
     """Refresh"""
     def refresh(self):
         self.mpd.refreshStats()
@@ -730,7 +754,7 @@ class MpdCmdFrame(wx.Frame):
     def load_preferences(self):
         if os.path.isfile(self.preferences_file) is False:
             with open(self.preferences_file, 'w') as file:
-                preferences = {"host":"","port":"","username":"","password":"","notifications":True}
+                preferences = {"host":"","port":"","username":"","password":"","notifications":DEFAULT_OPTION_NOTIFICATIONS,"mediakeys":DEFAULT_OPTION_MEDIAKEYS}
                 file.write(json.dumps(preferences))
         with open(self.preferences_file, 'r') as f:
             return json.loads(f.read())
@@ -1138,7 +1162,7 @@ class MpdCmdFrame(wx.Frame):
             self.preferences,
             self,
             title='Preferences',
-            size=(320,300))
+            size=(320,330))
         preferences.Show()
     """About menu selected"""
     def OnMenuAbout(self, _event: wx.CommandEvent) -> None:
@@ -1165,6 +1189,8 @@ class MpdCmdFrame(wx.Frame):
         self.logger.debug("OnClose()")
         if self.mpd:
             self.mpd.stop()
+        if self.kbd_thread:
+            self.kbd_thread.stop()
         self.timer.Stop()
         self.Destroy()
 
@@ -1268,8 +1294,15 @@ class MpdPreferencesFrame(wx.Frame):
         self.sizer.Add(notifications_label, 0, wx.EXPAND|wx.ALL, 1)
 
         notifications_check = wx.CheckBox(self.panel)
-        notifications_check.SetValue(self.preferences.get('notifications', True))
+        notifications_check.SetValue(self.preferences.get('notifications', DEFAULT_OPTION_NOTIFICATIONS))
         self.sizer.Add(notifications_check, 0, wx.EXPAND|wx.ALL, 1)
+
+        mediakeys_label = wx.StaticText(self.panel, label='Media Keys')
+        self.sizer.Add(mediakeys_label, 0, wx.EXPAND|wx.ALL, 1)
+
+        mediakeys_check = wx.CheckBox(self.panel)
+        mediakeys_check.SetValue(self.preferences.get('mediakeys', DEFAULT_OPTION_MEDIAKEYS))
+        self.sizer.Add(mediakeys_check, 0, wx.EXPAND|wx.ALL, 1)
 
         cancel_button = wx.Button(self.panel, label="Cancel")
         self.Bind(wx.EVT_BUTTON, self.OnCancel, cancel_button)
