@@ -133,6 +133,12 @@ class MpdIdleDatabaseEvent(wx.PyCommandEvent):
     def __init__(self):
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_IDLE_DATABASE, -1)
 
+mcEVT_MPD_IDLE_OPTIONS = wx.NewEventType()
+EVT_MPD_IDLE_OPTIONS = wx.PyEventBinder(mcEVT_MPD_IDLE_OPTIONS, 1)
+class MpdIdleOptionsEvent(wx.PyCommandEvent):
+    def __init__(self):
+        wx.PyCommandEvent.__init__(self, mcEVT_MPD_IDLE_OPTIONS, -1)
+
 """Handles executing requests to MPD"""
 class MpdConnection():
 
@@ -195,9 +201,12 @@ class MpdController():
 
         self.stats = {}
         self.status = {}
-        self.queue = {}
+        self.queue = []
         self.current_song = {}
+        self.albums = []
 
+        self.art_enabled = True
+        self.art_thread = None
         self.idle_thread = None
 
         self.__createArtFolder(self.art_folder)
@@ -208,9 +217,11 @@ class MpdController():
         self.idle_thread = MpdIdleThread(self.window, self.connection)
         self.idle_thread.start()
 
-    """Stop the status background thread"""
+    """Stop the status and art background threads"""
     def stop(self) -> None:
-        self.logger.info("Stopping thread")
+        self.logger.info("Stopping threads")
+        if self.art_enabled:
+            self.art_enabled = False
         if self.idle_thread:
             self.idle_thread.stop()
 
@@ -278,7 +289,31 @@ class MpdController():
                 'artist': 'VA' if is_various else tracks[0]['artist'],
                 'tracks': len(tracks),
                 'duration': duration})
-        wx.PostEvent(self.window, MpdAlbumsEvent(albums))
+        if self.albums != albums:
+            self.albums = albums
+            wx.PostEvent(self.window, MpdAlbumsEvent(self.albums))
+
+    """"""
+    def fetchAllAlbumArt(self, songs) -> None:
+        self.art_thread = threading.Thread(
+            target=self.connection.execute,
+            args=(self.__fetchAllAlbumArt, songs))
+        self.art_thread.start()
+    def __fetchAllAlbumArt(self, cli, songs) -> None:
+        self.art_enabled = True
+        for song in songs:
+            if self.art_enabled == False:
+                break
+            try:
+                self.__refresh_albumart(
+                    cli,
+                    song.get('artist', ''),
+                    song.get('album', ''),
+                    song.get('file', ''),
+                    False)
+            except:
+                # ignore error and carry on
+                pass
 
     """Refresh the queue"""
     def refreshQueue(self) -> None:
@@ -317,22 +352,24 @@ class MpdController():
         wx.PostEvent(self.window, MpdPlaylistsEvent(playlists))
 
     """"""
-    def refreshAlbumArt(self, artist, album, file) -> None:
+    def refreshAlbumArt(self, artist, album, file, trigger_event = True) -> None:
         threading.Thread(
             target=self.connection.execute,
-            args=(self.__refresh_albumart, artist, album, file)).start()
-    def __refresh_albumart(self, cli: musicpd.MPDClient, artist, album, file) -> None:
+            args=(self.__refresh_albumart, artist, album, file, trigger_event)).start()
+    def __refresh_albumart(self, cli: musicpd.MPDClient, artist, album, file, trigger_event) -> None:
         self.logger.debug("refresh_albumart()")
-        album_art = {}
-        offset = 0
-        album_art = {'size':'1','binary':'','data':b''}
-        data = b''
-        while offset < int(album_art['size']):
-            album_art = cli.albumart(file, offset)
-            offset += int(album_art['binary'])
-            data += album_art['data']
-        self.__saveAlbumArt(artist, album, data)
-        wx.PostEvent(self.window, MpdAlbumArtEvent(file))
+        if not self.__albumArtExists(artist, album):
+            album_art = {}
+            offset = 0
+            album_art = {'size':'1','binary':'','data':b''}
+            data = b''
+            while offset < int(album_art['size']):
+                album_art = cli.albumart(file, offset)
+                offset += int(album_art['binary'])
+                data += album_art['data']
+            self.__saveAlbumArt(artist, album, data)
+            if trigger_event:
+                wx.PostEvent(self.window, MpdAlbumArtEvent(file))
 
     """Play the queue position"""
     def playQueuePos(self, queue_pos) -> None:
@@ -529,6 +566,11 @@ class MpdController():
             os.remove(orig_path)
 
     """"""
+    def __albumArtExists(self, artist, album):
+        path = self.__getArtPath(self.art_folder, self.__getArtFile(artist, album), 'png')
+        return os.path.isfile(path)
+
+    """"""
     def __getFileExtension(self, data: str) -> None:
         if data.startswith(bytes.fromhex('ffd8ffe0')): # JFIF
             return ('jpg', wx.BITMAP_TYPE_JPEG)
@@ -581,6 +623,7 @@ class MpdIdleThread(threading.Thread):
             'playlist': self.__action_playlist,
             'update': self.__action_update,
             'database': self.__action_database,
+            'options': self.__action_options,
         }
         self.running = False
         self.socket_timeout = 10
@@ -640,6 +683,12 @@ class MpdIdleThread(threading.Thread):
         # database was modified
         self.logger.debug('Database action')
         wx.PostEvent(self.parent, MpdIdleDatabaseEvent())
+
+    """"""
+    def __action_options(self):
+        # option was modified
+        self.logger.debug('Options action')
+        wx.PostEvent(self.parent, MpdIdleOptionsEvent())
 
 """The main frame for the MpdCmd application"""
 class MpdCmdFrame(wx.Frame):
@@ -790,7 +839,13 @@ class MpdCmdFrame(wx.Frame):
     def load_preferences(self):
         if os.path.isfile(self.preferences_file) is False:
             with open(self.preferences_file, 'w') as file:
-                preferences = {"host":"","port":"","username":"","password":"","notifications":DEFAULT_OPTION_NOTIFICATIONS,"mediakeys":DEFAULT_OPTION_MEDIAKEYS}
+                preferences = {
+                    "host":"",
+                    "port":"",
+                    "username":"",
+                    "password":"",
+                    "notifications":DEFAULT_OPTION_NOTIFICATIONS,
+                    "mediakeys":DEFAULT_OPTION_MEDIAKEYS}
                 file.write(json.dumps(preferences))
         with open(self.preferences_file, 'r') as f:
             return json.loads(f.read())
@@ -883,7 +938,7 @@ class MpdCmdFrame(wx.Frame):
         self.Bind(wx.EVT_COMMAND_SCROLL_THUMBTRACK, self.OnVolChangeStart, self.current_vol)
         self.Bind(wx.EVT_COMMAND_SCROLL_THUMBRELEASE, self.OnVolChangeEnd, self.current_vol)
         tr_hori.Add(self.current_vol, 0, wx.EXPAND|wx.ALL, 1)
-        
+
         repeat_label = wx.StaticText(transport, label='Rpt')
         tr_hori.Add(repeat_label, 0, wx.EXPAND|wx.ALL, 1)
         self.repeat_check = wx.CheckBox(transport)
@@ -982,6 +1037,7 @@ class MpdCmdFrame(wx.Frame):
                 song.get('title', ''),
                 self.secondsToTime(float(song.get('duration', ''))),
                 song.get('file', '')])
+        self.mpd.fetchAllAlbumArt(songs)
     """MPD playlists changed"""
     def OnPlaylistsChanged(self, event: MpdPlaylistsEvent) -> None:
         playlists = event.GetValue()
@@ -1092,6 +1148,10 @@ class MpdCmdFrame(wx.Frame):
     def OnIdleDatabase(self, _event: MpdIdleDatabaseEvent) -> None:
         self.logger.debug("Idle database")
         # TODO: refresh albums and songs?
+    """Idle options event"""
+    def OnIdleOptions(self, _event: MpdIdleOptionsEvent) -> None:
+        self.logger.debug("Idle options")
+        self.mpd.refreshStatus()
 
     """Album item selected"""
     def OnAlbumSelect(self, _event: wx.ListEvent) -> None:
@@ -1377,14 +1437,16 @@ class MpdPreferencesFrame(wx.Frame):
         self.sizer.Add(notifications_label, 0, wx.EXPAND|wx.ALL, 1)
 
         notifications_check = wx.CheckBox(self.panel)
-        notifications_check.SetValue(self.preferences.get('notifications', DEFAULT_OPTION_NOTIFICATIONS))
+        notifications_check.SetValue(
+            self.preferences.get('notifications', DEFAULT_OPTION_NOTIFICATIONS))
         self.sizer.Add(notifications_check, 0, wx.EXPAND|wx.ALL, 1)
 
         mediakeys_label = wx.StaticText(self.panel, label='Media Keys')
         self.sizer.Add(mediakeys_label, 0, wx.EXPAND|wx.ALL, 1)
 
         mediakeys_check = wx.CheckBox(self.panel)
-        mediakeys_check.SetValue(self.preferences.get('mediakeys', DEFAULT_OPTION_MEDIAKEYS))
+        mediakeys_check.SetValue(
+            self.preferences.get('mediakeys', DEFAULT_OPTION_MEDIAKEYS))
         self.sizer.Add(mediakeys_check, 0, wx.EXPAND|wx.ALL, 1)
 
         cancel_button = wx.Button(self.panel, label="Cancel")
