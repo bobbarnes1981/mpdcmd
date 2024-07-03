@@ -671,7 +671,7 @@ class MpdIdleThread(threading.Thread):
         """Stop the thread"""
         self.running = False
 
-    def __idle(self, cli) -> None:
+    def __idle(self, cli: musicpd.MPDClient) -> None:
         """Refresh the status info"""
         self.logger.debug("idle()")
         cli.socket_timeout = self.socket_timeout
@@ -1104,10 +1104,15 @@ class MpdCmdFrame(wx.Frame):
         """Albums context menu"""
         self.logger.debug("albums_context_menu()")
         menu = wx.Menu()
-        append_item = menu.Append(-1, "Append")
+        append_item = menu.Append(-1, "Append Album")
         self.Bind(wx.EVT_MENU, self.on_menu_albums_append_album, append_item)
-        play_item = menu.Append(-1, "Play")
+        play_item = menu.Append(-1, "Play Album")
         self.Bind(wx.EVT_MENU, self.on_menu_albums_play_album, play_item)
+        menu.AppendSeparator()
+        append_artist_item = menu.Append(-1, "Append Artist")
+        self.Bind(wx.EVT_MENU, self.on_menu_albums_append_artist, append_artist_item)
+        play_artist_item = menu.Append(-1, "Play Artist")
+        self.Bind(wx.EVT_MENU, self.on_menu_albums_play_artist, play_artist_item)
         self.PopupMenu(menu, event.GetPoint())
     def playlists_context_menu(self, _event):
         """Playlists context menu"""
@@ -1412,6 +1417,16 @@ class MpdCmdFrame(wx.Frame):
         album_name = self.album_ctrl.GetItem(self.album_ctrl.GetFirstSelected(), col=1).GetText()
         self.logger.info("Albums item play %s", album_name)
         self.mpd.play_album_tag(album_name)
+    def on_menu_albums_append_artist(self, _event) -> None:
+        """Albums append artist"""
+        artist_name = self.album_ctrl.GetItem(self.album_ctrl.GetFirstSelected(), col=2).GetText()
+        self.logger.info("Albums item append %s", artist_name)
+        self.mpd.append_artist_tag(artist_name)
+    def on_menu_albums_play_artist(self, _event) -> None:
+        """Albums play artist"""
+        artist_name = self.album_ctrl.GetItem(self.album_ctrl.GetFirstSelected(), col=2).GetText()
+        self.logger.info("Albums item play %s", artist_name)
+        self.mpd.play_artist_tag(artist_name)
 
     def on_menu_songs_append_song(self, _event) -> None:
         """Songs append song"""
