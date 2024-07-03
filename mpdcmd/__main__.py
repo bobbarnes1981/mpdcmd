@@ -30,9 +30,11 @@ EVT_MPD_CONNECTION = wx.PyEventBinder(mcEVT_MPD_CONNECTION, 1)
 class MpdConnectionEvent(wx.PyCommandEvent):
     """MPD connection event"""
     def __init__(self, value: str):
+        """Initialise the event"""
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_CONNECTION, -1)
         self._value = value
     def GetValue(self) -> str:
+        """Get the value"""
         return self._value
 
 mcEVT_MPD_STATS = wx.NewEventType()
@@ -40,9 +42,11 @@ EVT_MPD_STATS = wx.PyEventBinder(mcEVT_MPD_STATS, 1)
 class MpdStatsEvent(wx.PyCommandEvent):
     """MPD stats event"""
     def __init__(self, value: dict):
+        """Initialise the event"""
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_STATS, -1)
         self._value = value
     def GetValue(self) -> dict:
+        """Get the value"""
         return self._value
 
 mcEVT_MPD_STATUS = wx.NewEventType()
@@ -50,9 +54,11 @@ EVT_MPD_STATUS = wx.PyEventBinder(mcEVT_MPD_STATUS, 1)
 class MpdStatusEvent(wx.PyCommandEvent):
     """MPD status event"""
     def __init__(self, value: dict):
+        """Initialise the event"""
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_STATUS, -1)
         self._value = value
     def GetValue(self) -> dict:
+        """Get the value"""
         return self._value
 
 mcEVT_MPD_SONGS = wx.NewEventType()
@@ -60,9 +66,11 @@ EVT_MPD_SONGS = wx.PyEventBinder(mcEVT_MPD_SONGS, 1)
 class MpdSongsEvent(wx.PyCommandEvent):
     """MPD songs event"""
     def __init__(self, value: list):
+        """Initialise the event"""
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_SONGS, -1)
         self._value = value
     def GetValue(self) -> list:
+        """Get the value"""
         return self._value
 
 mcEVT_MPD_PLAYLISTS = wx.NewEventType()
@@ -70,9 +78,11 @@ EVT_MPD_PLAYLISTS = wx.PyEventBinder(mcEVT_MPD_PLAYLISTS, 1)
 class MpdPlaylistsEvent(wx.PyCommandEvent):
     """MPD playlists event"""
     def __init__(self, value: list):
+        """Initialise the event"""
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_PLAYLISTS, -1)
         self._value = value
     def GetValue(self) -> list:
+        """Get the value"""
         return self._value
 
 mcEVT_MPD_ALBUMART = wx.NewEventType()
@@ -80,9 +90,11 @@ EVT_MPD_ALBUMART = wx.PyEventBinder(mcEVT_MPD_ALBUMART, 1)
 class MpdAlbumArtEvent(wx.PyCommandEvent):
     """MPD albums event"""
     def __init__(self, value: str):
+        """Initialise the event"""
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_ALBUMART, -1)
         self._value = value
     def GetValue(self) -> str:
+        """Get the value"""
         return self._value
 
 mcEVT_MPD_CTRL_CURRENTSONG = wx.NewEventType()
@@ -90,9 +102,11 @@ EVT_MPD_CTRL_CURRENTSONG = wx.PyEventBinder(mcEVT_MPD_CTRL_CURRENTSONG, 1)
 class MpdCurrentSongEvent(wx.PyCommandEvent):
     """MPD current song event"""
     def __init__(self, value: dict):
+        """Initialise the event"""
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_CTRL_CURRENTSONG, -1)
         self._value = value
     def GetValue(self) -> dict:
+        """Get the value"""
         return self._value
 
 mcEVT_MPD_CTRL_QUEUE = wx.NewEventType()
@@ -100,9 +114,11 @@ EVT_MPD_CTRL_QUEUE = wx.PyEventBinder(mcEVT_MPD_CTRL_QUEUE, 1)
 class MpdQueueEvent(wx.PyCommandEvent):
     """MPD queue event"""
     def __init__(self, value: list):
+        """Initialise the event"""
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_CTRL_QUEUE, -1)
         self._value = value
     def GetValue(self) -> list:
+        """Get the value"""
         return self._value
 
 mcEVT_MPD_CTRL_ALBUMS = wx.NewEventType()
@@ -110,9 +126,11 @@ EVT_MPD_CTRL_ALBUMS = wx.PyEventBinder(mcEVT_MPD_CTRL_ALBUMS, 1)
 class MpdAlbumsEvent(wx.PyCommandEvent):
     """MPD albums event"""
     def __init__(self, value: list):
+        """Initialise the event"""
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_CTRL_ALBUMS, -1)
         self._value = value
     def GetValue(self) -> list:
+        """Get the value"""
         return self._value
 
 mcEVT_MPD_IDLE_PLAYER = wx.NewEventType()
@@ -120,6 +138,7 @@ EVT_MPD_IDLE_PLAYER = wx.PyEventBinder(mcEVT_MPD_IDLE_PLAYER, 1)
 class MpdIdlePlayerEvent(wx.PyCommandEvent):
     """MPD idle player event"""
     def __init__(self):
+        """Initialise the event"""
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_IDLE_PLAYER, -1)
 
 mcEVT_MPD_IDLE_MIXER = wx.NewEventType()
@@ -127,6 +146,7 @@ EVT_MPD_IDLE_MIXER = wx.PyEventBinder(mcEVT_MPD_IDLE_MIXER, 1)
 class MpdIdleMixerEvent(wx.PyCommandEvent):
     """MPD idle mixer event"""
     def __init__(self):
+        """Initialise the event"""
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_IDLE_MIXER, -1)
 
 mcEVT_MPD_IDLE_PLAYLIST = wx.NewEventType()
@@ -134,6 +154,7 @@ EVT_MPD_IDLE_PLAYLIST = wx.PyEventBinder(mcEVT_MPD_IDLE_PLAYLIST, 1)
 class MpdIdlePlaylistEvent(wx.PyCommandEvent):
     """MPD idle playlists event"""
     def __init__(self):
+        """Initialise the event"""
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_IDLE_PLAYLIST, -1)
 
 mcEVT_MPD_IDLE_UPDATE = wx.NewEventType()
@@ -141,6 +162,7 @@ EVT_MPD_IDLE_UPDATE = wx.PyEventBinder(mcEVT_MPD_IDLE_UPDATE, 1)
 class MpdIdleUpdateEvent(wx.PyCommandEvent):
     """MPD idle update event"""
     def __init__(self):
+        """Initialise the event"""
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_IDLE_UPDATE, -1)
 
 mcEVT_MPD_IDLE_DATABASE = wx.NewEventType()
@@ -148,6 +170,7 @@ EVT_MPD_IDLE_DATABASE = wx.PyEventBinder(mcEVT_MPD_IDLE_DATABASE, 1)
 class MpdIdleDatabaseEvent(wx.PyCommandEvent):
     """MPD idle database event"""
     def __init__(self):
+        """Initialise the event"""
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_IDLE_DATABASE, -1)
 
 mcEVT_MPD_IDLE_OPTIONS = wx.NewEventType()
@@ -155,6 +178,7 @@ EVT_MPD_IDLE_OPTIONS = wx.PyEventBinder(mcEVT_MPD_IDLE_OPTIONS, 1)
 class MpdIdleOptionsEvent(wx.PyCommandEvent):
     """MPD idle options event"""
     def __init__(self):
+        """Initialise the event"""
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_IDLE_OPTIONS, -1)
 
 class MpdConnection():
