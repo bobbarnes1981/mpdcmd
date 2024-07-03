@@ -133,11 +133,11 @@ class MpdIdleDatabaseEvent(wx.PyCommandEvent):
     def __init__(self):
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_IDLE_DATABASE, -1)
 
-"""Handles executing requests to MPD"""
 class MpdConnection():
+    """Handles executing requests to MPD"""
 
-    """Initialise the MpdConnection"""
     def __init__(self, window: wx.Window, host: str, port: str, username: str, password: str):
+        """Initialise the MpdConnection"""
         self.window = window
         self.host = host
         self.port = port
@@ -154,8 +154,8 @@ class MpdConnection():
 
         self.connection_status = None
 
-    """Execute the provided function with a connected client"""
     def execute(self, func: callable, *args):
+        """Execute the provided function with a connected client"""
         #musicpd.CONNECTION_TIMEOUT = 1
         os.environ['MPD_HOST'] = self.host
         os.environ['MPD_PORT'] = self.port
@@ -175,11 +175,11 @@ class MpdConnection():
             self.connection_status = connection_status
             wx.PostEvent(self.window, MpdConnectionEvent(connection_status))
 
-"""Provides interface to MPD"""
 class MpdController():
+    """Provides interface to MPD"""
 
-    """Initialise the MpdController"""
     def __init__(self, window: wx.Window, host: str, port: str, username: str, password:str):
+        """Initialise the MpdController"""
         self.window = window
         self.host = host
         self.port = port
@@ -202,20 +202,20 @@ class MpdController():
 
         self.__createArtFolder(self.art_folder)
 
-    """Start the background thread"""
     def start(self) -> None:
+        """Start the background thread"""
         self.logger.info("Starting thread")
         self.idle_thread = MpdIdleThread(self.window, self.connection)
         self.idle_thread.start()
 
-    """Stop the status background thread"""
     def stop(self) -> None:
+        """Stop the status background thread"""
         self.logger.info("Stopping thread")
         if self.idle_thread:
             self.idle_thread.stop()
 
-    """Refresh the stats"""
     def refreshStats(self) -> None:
+        """Refresh the stats"""
         threading.Thread(
             target=self.connection.execute,
             args=(self.__refresh_stats,)).start()
@@ -227,8 +227,8 @@ class MpdController():
             self.stats = stats
             wx.PostEvent(self.window, MpdStatsEvent(self.stats))
 
-    """Refresh the status info"""
     def refreshStatus(self) -> None:
+        """Refresh the status info"""
         threading.Thread(
             target=self.connection.execute,
             args=(self.__refresh_status,)).start()
@@ -240,8 +240,8 @@ class MpdController():
             self.status = status
             wx.PostEvent(self.window, MpdStatusEvent(self.status))
 
-    """Refresh the current song"""
     def refreshCurrentSong(self) -> None:
+        """Refresh the current song"""
         threading.Thread(
             target=self.connection.execute,
             args=(self.__refresh_current_song,)).start()
@@ -256,8 +256,8 @@ class MpdController():
                 self.current_song = current_song
                 wx.PostEvent(self.window, MpdCurrentSongEvent(self.current_song))
 
-    """Refresh albums"""
     def refreshAlbums(self) -> None:
+        """Refresh albums"""
         threading.Thread(
             target=self.connection.execute,
             args=(self.__refresh_albums,)).start()
@@ -280,8 +280,8 @@ class MpdController():
                 'duration': duration})
         wx.PostEvent(self.window, MpdAlbumsEvent(albums))
 
-    """Refresh the queue"""
     def refreshQueue(self) -> None:
+        """Refresh the queue"""
         threading.Thread(
             target=self.connection.execute,
             args=(self.__refresh_queue,)).start()
@@ -293,8 +293,8 @@ class MpdController():
             self.queue = queue
             wx.PostEvent(self.window, MpdQueueEvent(queue))
 
-    """"""
     def refreshSongs(self) -> None:
+        """"""
         threading.Thread(
             target=self.connection.execute,
             args=(self.__refresh_songs,)).start()
@@ -305,8 +305,8 @@ class MpdController():
         filtered = list(filter(lambda song: song.get('directory', '') == '', songs))
         wx.PostEvent(self.window, MpdSongsEvent(filtered))
 
-    """"""
     def refreshPlaylists(self) -> None:
+        """"""
         threading.Thread(
             target=self.connection.execute,
             args=(self.__refresh_playlists,)).start()
@@ -316,8 +316,8 @@ class MpdController():
         playlists = cli.listplaylists()
         wx.PostEvent(self.window, MpdPlaylistsEvent(playlists))
 
-    """"""
     def refreshAlbumArt(self, artist, album, file) -> None:
+        """"""
         threading.Thread(
             target=self.connection.execute,
             args=(self.__refresh_albumart, artist, album, file)).start()
@@ -334,25 +334,33 @@ class MpdController():
         self.__saveAlbumArt(artist, album, data)
         wx.PostEvent(self.window, MpdAlbumArtEvent(file))
 
-    """Play the queue position"""
     def playQueuePos(self, queue_pos) -> None:
+        """Play the queue position"""
         threading.Thread(
             target=self.connection.execute,
             args=(self.__playQueuePos, queue_pos)).start()
     def __playQueuePos(self, cli: musicpd.MPDClient, queue_pos) -> None:
         self.logger.debug("playQueuePos()")
         cli.play(queue_pos)
-    """Delete the queue position"""
     def deleteQueuePos(self, queue_pos) -> None:
+        """Delete the queue position"""
         threading.Thread(
             target=self.connection.execute,
             args=(self.__deleteQueuePos, queue_pos)).start()
     def __deleteQueuePos(self, cli: musicpd.MPDClient, queue_pos) -> None:
         self.logger.debug("deleteQueuePos()")
         cli.delete(queue_pos)
+    def clearQueue(self) -> None:
+        """Clear the queue"""
+        threading.Thread(
+            target=self.connection.execute,
+            args=(self.__clearQueue,)).start()
+    def __clearQueue(self, cli: musicpd.MPDClient) -> None:
+        self.logger.debug("clearQueue()")
+        cli.clear()
 
-    """Play the album tag"""
     def playAlbumTag(self, album_name: str) -> None:
+        """Play the album tag"""
         threading.Thread(
             target=self.connection.execute,
             args=(self.__playAlbumTag, album_name)).start()
@@ -364,8 +372,8 @@ class MpdController():
         cli.play()
         wx.PostEvent(self.window, MpdQueueEvent(queue)) # do we need this?
 
-    """Append the album tag"""
     def appendAlbumTag(self, album_name: str) -> None:
+        """Append the album tag"""
         threading.Thread(
             target=self.connection.execute,
             args=(self.__appendAlbumTag, album_name)).start()
@@ -376,8 +384,8 @@ class MpdController():
         cli.play()
         wx.PostEvent(self.window, MpdQueueEvent(queue)) # do we need this?
 
-    """Play the artist tag"""
     def playArtistTag(self, artist_name: str) -> None:
+        """Play the artist tag"""
         threading.Thread(
             target=self.connection.execute,
             args=(self.__playArtistTag, artist_name)).start()
@@ -389,8 +397,8 @@ class MpdController():
         cli.play()
         wx.PostEvent(self.window, MpdQueueEvent(queue)) # do we need this?
 
-    """Append the artist tag"""
     def appendArtistTag(self, artist_name: str) -> None:
+        """Append the artist tag"""
         threading.Thread(
             target=self.connection.execute,
             args=(self.__appendArtistTag, artist_name)).start()
@@ -401,8 +409,8 @@ class MpdController():
         cli.play()
         wx.PostEvent(self.window, MpdQueueEvent(queue)) # do we need this?
 
-    """Play the song"""
-    def playSong(self, file: str) -> None:
+    def playSong(self, file: str) -> None: 
+        """Play the song"""
         threading.Thread(
             target=self.connection.execute,
             args=(self.__playSong, file)).start()
@@ -414,8 +422,8 @@ class MpdController():
         cli.play()
         wx.PostEvent(self.window, MpdQueueEvent(queue)) # do we need this?
 
-    """Append the song"""
     def appendSong(self, file: str) -> None:
+        """Append the song"""
         threading.Thread(
             target=self.connection.execute,
             args=(self.__appendSong, file)).start()
@@ -426,8 +434,8 @@ class MpdController():
         cli.play()
         wx.PostEvent(self.window, MpdQueueEvent(queue)) # do we need this?
 
-    """Pause playing the current song"""
     def pause(self) -> None:
+        """Pause playing the current song"""
         threading.Thread(
             target=self.connection.execute,
             args=(self.__pause,)).start()
@@ -435,8 +443,8 @@ class MpdController():
         self.logger.debug("pause()")
         cli.pause()
 
-    """Play the current song in queue"""
     def play(self):
+        """Play the current song in queue"""
         threading.Thread(
             target=self.connection.execute,
             args=(self.__play,)).start()
@@ -444,8 +452,8 @@ class MpdController():
         self.logger.debug("play()")
         cli.play()
 
-    """Next song in queue"""
     def next(self):
+        """Next song in queue"""
         threading.Thread(
             target=self.connection.execute,
             args=(self.__next,)).start()
@@ -453,8 +461,8 @@ class MpdController():
         self.logger.debug("next()")
         cli.next()
 
-    """Previous song in qeueue"""
     def prev(self) -> None:
+        """Previous song in qeueue"""
         threading.Thread(
             target=self.connection.execute,
             args=(self.__prev,)).start()
@@ -462,8 +470,8 @@ class MpdController():
         self.logger.debug("prev()")
         cli.previous()
 
-    """Set volume"""
     def setVolume(self, volume) -> None:
+        """Set volume"""
         threading.Thread(
             target=self.connection.execute,
             args=(self.__setVolume, volume)).start()
@@ -471,8 +479,8 @@ class MpdController():
         self.logger.debug("setVolume()")
         cli.setvol(volume)
 
-    """Set repeat"""
     def setRepeat(self, repeat) -> None:
+        """Set repeat"""
         threading.Thread(
             target=self.connection.execute,
             args=(self.__setRepeat, repeat)).start()
@@ -480,8 +488,8 @@ class MpdController():
         self.logger.debug("setRepeat()")
         cli.repeat('1' if repeat else '0')
 
-    """Set random"""
     def setRandom(self, random) -> None:
+        """Set random"""
         threading.Thread(
             target=self.connection.execute,
             args=(self.__setRandom, random)).start()
@@ -489,8 +497,8 @@ class MpdController():
         self.logger.debug("setRandom()")
         cli.random('1' if random else '0')
 
-    """Set single"""
     def setSingle(self, single) -> None:
+        """Set single"""
         threading.Thread(
             target=self.connection.execute,
             args=(self.__setSingle, single)).start()
@@ -498,8 +506,8 @@ class MpdController():
         self.logger.debug("setSingle()")
         cli.single('1' if single else '0')
 
-    """Set consume"""
     def setConsume(self, consume) -> None:
+        """Set consume"""
         threading.Thread(
             target=self.connection.execute,
             args=(self.__setConsume, consume)).start()
@@ -507,8 +515,8 @@ class MpdController():
         self.logger.debug("setConsume()")
         cli.consume(consume)
 
-    """Update"""
     def update(self) -> None:
+        """Update"""
         threading.Thread(
             target=self.connection.execute,
             args=(self.__update,)).start()
@@ -516,8 +524,8 @@ class MpdController():
         self.logger.debug("update()")
         cli.update()
 
-    """"""
     def __saveAlbumArt(self, artist, album, data):
+        """"""
         ext, typ = self.__getFileExtension(data)
         orig_path = self.__getArtPath(self.art_folder, self.__getArtFile(artist, album), ext)
         with open(orig_path, 'w+b') as f:
@@ -528,8 +536,8 @@ class MpdController():
             orig_img.SaveFile(new_path, wx.BITMAP_TYPE_PNG)
             os.remove(orig_path)
 
-    """"""
     def __getFileExtension(self, data: str) -> None:
+        """"""
         if data.startswith(bytes.fromhex('ffd8ffe0')): # JFIF
             return ('jpg', wx.BITMAP_TYPE_JPEG)
         if data.startswith(bytes.fromhex('ffd8ffe1')): # EXIF
@@ -538,36 +546,36 @@ class MpdController():
             return ('png', wx.BITMAP_TYPE_PNG)
         raise Exception(f'Unhandled file type {data[:5]}')
 
-    """"""
     def __createArtFolder(self, folder) -> None:
+        """"""
         path = os.path.join(os.path.curdir, 'mpdcmd', folder)
         if not os.path.exists(path):
             os.makedirs(path)
-    """"""
     def __getArtPath(self, folder, file, ext) -> str:
+        """"""
         return os.path.join(os.path.curdir, 'mpdcmd', folder, f"{file}.{ext}")
-    """"""
     def __getArtFile(self, artist, album) -> str:
+        """"""
         file = '%s-%s' % (artist, album)
         # lazy fix for invalid filename characters
         return base64.urlsafe_b64encode(file.encode())
-    """"""
     def getDefaultAlbumArt(self) -> wx.Bitmap:
+        """"""
         path = self.__getArtPath('icons', 'icon', 'png')
         return wx.Image(path, type=wx.BITMAP_TYPE_PNG).Scale(80, 80).ConvertToBitmap()
 
-    """"""
     def getAlbumArt(self, artist, album) -> wx.Bitmap:
+        """"""
         path = self.__getArtPath(self.art_folder, self.__getArtFile(artist, album), 'png')
         if os.path.isfile(path):
             return wx.Image(path, type=wx.BITMAP_TYPE_PNG).Scale(80, 80).ConvertToBitmap()
         return self.getDefaultAlbumArt()
 
-""""""
 class MpdIdleThread(threading.Thread):
+    """"""
 
-    """Initialise the MpdIdleThread"""
     def __init__(self, parent: wx.Window, connection: MpdConnection):
+        """Initialise the MpdIdleThread"""
         threading.Thread.__init__(self)
         self.parent = parent
         self.connection = connection
@@ -585,18 +593,18 @@ class MpdIdleThread(threading.Thread):
         self.running = False
         self.socket_timeout = 10
 
-    """Start the thread (override)"""
     def run(self):
+        """Start the thread (override)"""
         self.running = True
         while self.running:
             self.logger.debug("tick()")
             self.connection.execute(self.__idle)
-    """Stop the thread"""
     def stop(self) -> None:
+        """Stop the thread"""
         self.running = False
 
-    """Refresh the status info"""
     def __idle(self, cli) -> None:
+        """Refresh the status info"""
         self.logger.debug("idle()")
         cli.socket_timeout = self.socket_timeout
         try:
@@ -611,41 +619,41 @@ class MpdIdleThread(threading.Thread):
         except TimeoutError:
             self.logger.debug('Idle timeout after %ds', self.socket_timeout)
 
-    """"""
     def __action_player(self):
+        """"""
         # start/stop/seek or changed tags of current song
         self.logger.debug('Player action')
         wx.PostEvent(self.parent, MpdIdlePlayerEvent())
 
-    """"""
     def __action_mixer(self):
+        """"""
         # volume has been changed
         self.logger.debug('Mixer action')
         wx.PostEvent(self.parent, MpdIdleMixerEvent())
 
-    """"""
     def __action_playlist(self):
+        """"""
         # queue has been modified
         self.logger.debug('Playlist action')
         wx.PostEvent(self.parent, MpdIdlePlaylistEvent())
 
-    """"""
     def __action_update(self):
+        """"""
         # update has started or finished
         self.logger.debug('Update action')
         wx.PostEvent(self.parent, MpdIdleUpdateEvent())
 
-    """"""
     def __action_database(self):
+        """"""
         # database was modified
         self.logger.debug('Database action')
         wx.PostEvent(self.parent, MpdIdleDatabaseEvent())
 
-"""The main frame for the MpdCmd application"""
 class MpdCmdFrame(wx.Frame):
+    """The main frame for the MpdCmd application"""
 
-    """Initialise MpdCmdFrame"""
     def __init__(self, *args, **kw):
+        """Initialise MpdCmdFrame"""
         wx.Frame.__init__(self, *args, **kw)
         self.Bind(wx.EVT_CLOSE, self.OnClose)
 
@@ -777,8 +785,8 @@ class MpdCmdFrame(wx.Frame):
             self.current_vol.SetValue(self.current_vol.GetValue()-5)
             self.OnVolChanged(None)
 
-    """Refresh"""
     def refresh(self):
+        """Refresh"""
         self.mpd.refreshStats()
         self.mpd.refreshStatus()
         self.mpd.refreshAlbums()
@@ -786,17 +794,23 @@ class MpdCmdFrame(wx.Frame):
         self.mpd.refreshPlaylists()
         self.mpd.refreshSongs()
 
-    """Load preferences"""
     def load_preferences(self):
+        """Load preferences"""
         if os.path.isfile(self.preferences_file) is False:
             with open(self.preferences_file, 'w') as file:
-                preferences = {"host":"","port":"","username":"","password":"","notifications":DEFAULT_OPTION_NOTIFICATIONS,"mediakeys":DEFAULT_OPTION_MEDIAKEYS}
+                preferences = {
+                    "host":"",
+                    "port":"",
+                    "username":"",
+                    "password":"",
+                    "notifications":DEFAULT_OPTION_NOTIFICATIONS,
+                    "mediakeys":DEFAULT_OPTION_MEDIAKEYS}
                 file.write(json.dumps(preferences))
         with open(self.preferences_file, 'r') as f:
             return json.loads(f.read())
 
-    """Make the notebook"""
     def make_notebook(self, parent) -> wx.Notebook:
+        """Make the notebook"""
         notebook = wx.Notebook(parent)
 
         self.queue_ctrl = wx.ListCtrl(notebook)
@@ -861,8 +875,8 @@ class MpdCmdFrame(wx.Frame):
         self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.songs_context_menu, self.songs_ctrl)
 
         return notebook
-    """Make the transport"""
     def make_transport(self, parent) -> wx.Panel:
+        """Make the transport"""
         transport = wx.Panel(parent)
         tr_hori = wx.BoxSizer(wx.HORIZONTAL)
 
@@ -914,8 +928,8 @@ class MpdCmdFrame(wx.Frame):
 
         transport.SetSizer(tr_hori)
         return transport
-    """Make the menu bar"""
     def make_menu_bar(self) -> None:
+        """Make the menu bar"""
         file_menu = wx.Menu()
         pref_item = file_menu.Append(-1, "&Preferences", "Configure preferences")
         file_menu.AppendSeparator()
@@ -940,35 +954,35 @@ class MpdCmdFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnMenuUpdate, update_item)
         self.Bind(wx.EVT_MENU, self.OnMenuAbout, about_item)
 
-    """Convert seconds to time"""
     def seconds_to_time(self, seconds: float) -> str:
+        """Convert seconds to time"""
         return "%02d:%02d" % (seconds//60, seconds%60)
 
-    """On timer tick"""
     def on_tick(self, _event: wx.TimerEvent) -> None:
+        """On timer tick"""
         self.logger.debug("on_tick")
         if self.playing:
             self.elapsed += 1
         self.updateCurrentSongTimeText()
 
-    """MPD connection changed"""
     def on_connection_changed(self, event: MpdConnectionEvent) -> None:
+        """MPD connection changed"""
         self.connection_status = event.GetValue()
         self.logger.info("Connection changed %s", self.connection_status)
         self.update_statusBarText()
-    """MPD stats changed"""
     def on_stats_changed(self, event: MpdStatsEvent) -> None:
+        """MPD stats changed"""
         self.stats = event.GetValue()
         self.logger.info("Stats changed %s", self.stats)
         self.update_title()
-    """MPD status changed"""
     def on_status_changed(self, event: MpdStatusEvent) -> None:
+        """MPD status changed"""
         self.status = event.GetValue()
         self.logger.info("Status changed %s", self.status)
         self.update_status()
         self.mpd.refreshCurrentSong()
-    """MPD songs changed"""
     def on_songs_changed(self, event: MpdSongsEvent) -> None:
+        """MPD songs changed"""
         songs = event.GetValue()
         self.logger.info("Songs changed %s", len(songs))
         self.songs_ctrl.DeleteAllItems()
@@ -982,30 +996,32 @@ class MpdCmdFrame(wx.Frame):
                 song.get('title', ''),
                 self.seconds_to_time(float(song.get('duration', ''))),
                 song.get('file', '')])
-    """MPD playlists changed"""
     def on_playlists_changed(self, event: MpdPlaylistsEvent) -> None:
+        """MPD playlists changed"""
         playlists = event.GetValue()
         self.logger.info("Playlists changed %s", playlists)
         self.playlists_ctrl.DeleteAllItems()
         for playlist in playlists:
             self.playlists_ctrl.Append(playlist)
-    """MPD albumart changed"""
     def on_album_art_changed(self, event: MpdAlbumArtEvent) -> None:
+        """MPD albumart changed"""
         songid = event.GetValue()
         self.logger.info("Albumart changed %s", songid)
         self.setCurrentAlbumArt()
 
-    """"""
     def queue_context_menu(self, event):
+        """"""
         self.logger.debug("queue_context_menu()")
         menu = wx.Menu()
+        clear_item = menu.Append(-1, "Clear")
+        self.Bind(wx.EVT_MENU, self.OnMenuQueueClear, clear_item)
         delete_item = menu.Append(-1, "Delete")
         self.Bind(wx.EVT_MENU, self.OnMenuQueueDelete, delete_item)
         play_item = menu.Append(-1, "Play")
         self.Bind(wx.EVT_MENU, self.OnMenuQueuePlay, play_item)
         self.PopupMenu(menu, event.GetPoint())
-    """"""
     def albums_context_menu(self, event):
+        """"""
         self.logger.debug("albums_context_menu()")
         menu = wx.Menu()
         append_item = menu.Append(-1, "Append")
@@ -1013,11 +1029,11 @@ class MpdCmdFrame(wx.Frame):
         play_item = menu.Append(-1, "Play")
         self.Bind(wx.EVT_MENU, self.OnMenuAlbumsPlay, play_item)
         self.PopupMenu(menu, event.GetPoint())
-    """"""
     def playlists_context_menu(self, _event):
+        """"""
         self.logger.debug("playlists_context_menu()")
-    """"""
     def songs_context_menu(self, event):
+        """"""
         self.logger.debug("songs_context_menu()")
         menu = wx.Menu()
         append_item = menu.Append(-1, "Append Song")
@@ -1034,8 +1050,8 @@ class MpdCmdFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnMenuSongsPlayArtist, play_artist_item)
         self.PopupMenu(menu, event.GetPoint())
 
-    """MPD current song changed"""
     def on_current_song_changed(self, event: MpdCurrentSongEvent) -> None:
+        """MPD current song changed"""
         self.current_song = event.GetValue()
         self.logger.info("Song changed %s", self.current_song)
         self.mpd.refreshAlbumArt(
@@ -1043,8 +1059,8 @@ class MpdCmdFrame(wx.Frame):
             self.current_song.get('album', ''),
             self.current_song.get('file', ''))
         self.updateCurrentSong()
-    """Albums changed"""
     def on_albums_changed(self, event: MpdAlbumsEvent) -> None:
+        """Albums changed"""
         albums = event.GetValue()
         self.logger.info("Albums changed %d", len(albums))
         self.album_ctrl.DeleteAllItems()
@@ -1055,8 +1071,8 @@ class MpdCmdFrame(wx.Frame):
                 album.get('artist', ''),
                 album.get('tracks', ''),
                 self.seconds_to_time(float(album.get('duration', '')))])
-    """Queue changed"""
     def on_queue_changed(self, event: MpdQueueEvent) -> None:
+        """Queue changed"""
         queue = event.GetValue()
         self.logger.info("Queue changed %s", len(queue))
         self.queue_ctrl.DeleteAllItems()
@@ -1073,86 +1089,86 @@ class MpdCmdFrame(wx.Frame):
                 queue[s]['title'],
                 self.seconds_to_time(float(queue[s]['duration']))])
 
-    """Idle player event"""
     def on_idle_player(self, _event: MpdIdlePlayerEvent) -> None:
+        """Idle player event"""
         self.logger.debug("Idle player")
         self.mpd.refreshStatus()
-    """Idle mixer event"""
     def on_idle_mixer(self, _event: MpdIdleMixerEvent) -> None:
+        """Idle mixer event"""
         self.logger.debug("Idle mixer")
         self.mpd.refreshStatus()
-    """Idle playlist event"""
     def on_idle_playlist(self, _event: MpdIdlePlaylistEvent) -> None:
+        """Idle playlist event"""
         self.logger.debug("Idle playlist")
         self.mpd.refreshQueue()
-    """Idle update event"""
     def on_idle_update(self, _event: MpdIdleUpdateEvent) -> None:
+        """Idle update event"""
         self.logger.debug("Idle update")
-    """Idle database event"""
     def on_idle_database(self, _event: MpdIdleDatabaseEvent) -> None:
+        """Idle database event"""
         self.logger.debug("Idle database")
         # TODO: refresh albums and songs?
 
-    """Album item selected"""
     def album_item_activated(self, _event: wx.ListEvent) -> None:
+        """Album item selected"""
         album_name = self.album_ctrl.GetItem(
             self.album_ctrl.GetFirstSelected(), col=1).GetText()
         self.logger.info("Album selected %s", album_name)
         self.mpd.playAlbumTag(album_name)
-    """Queue item selected"""
     def queue_item_activated(self, _event: wx.ListEvent) -> None:
+        """Queue item selected"""
         queue_pos = self.queue_ctrl.GetItem(
             self.queue_ctrl.GetFirstSelected(), col=2).GetText()
         queue_pos = int(queue_pos)
         self.logger.info("Queue item selected %s", queue_pos)
         self.mpd.playQueuePos(queue_pos)
-    """Playlist item selected"""
     def playlists_item_activated(self, _event: wx.ListEvent):
+        """Playlist item selected"""
         playlist = self.playlists_ctrl.GetItem(
             self.playlists_ctrl.GetFirstSelected(), col=0).GetText()
         self.logger.debug("Playlist selected %s", playlist)
-    """Song item selected"""
     def OnSongSelect(self, _event: wx.ListEvent):
+        """Song item selected"""
         song = self.songs_ctrl.GetItem(self.songs_ctrl.GetFirstSelected(), col=0).GetText()
         self.logger.debug("Song selected %s", song)
 
-    """Update the title text"""
     def update_title(self) -> None:
+        """Update the title text"""
         self.Title = "MPDCMD [Artists %s Albums %s Songs %s]" % (
             self.stats.get('artists', '?'),
             self.stats.get('albums', '?'),
             self.stats.get('songs', '?'))
-    """Update status related ui"""
     def update_status(self) -> None:
+        """Update status related ui"""
         self.updatePlayPause()
         self.updateVolume()
         self.updateOptions()
         self.updateSongTime()
-    """Update play/pause button label"""
     def updatePlayPause(self) -> None:
+        """Update play/pause button label"""
         if self.status.get('state', '') != 'play':
             self.play_button.SetLabel("Play")
             self.playing = False
         else:
             self.play_button.SetLabel("Pause")
             self.playing = True
-    """Update the volume slider value"""
     def updateVolume(self) -> None:
+        """Update the volume slider value"""
         if not self.volume_changing:
             self.current_vol.SetValue(int(self.status.get('volume', '0')))
-    """"""
     def updateOptions(self) -> None:
+        """"""
         self.repeat_check.SetValue(bool(self.status.get('repeat', '0') == '1'))
         self.random_check.SetValue(bool(self.status.get('random', '0') == '1'))
         self.single_check.SetValue(bool(self.status.get('repeat', '0') == '1'))
         self.consume_check.SetValue(bool(self.status.get('consume', '0') == '1'))
-    """Update song time"""
     def updateSongTime(self) -> None:
+        """Update song time"""
         self.elapsed = float(self.status.get('elapsed', '0'))
         self.duration = float(self.status.get('duration', '0'))
         self.updateCurrentSongTimeText()
-    """Update current song"""
     def updateCurrentSong(self) -> None:
+        """Update current song"""
         for s in range(0, self.queue_ctrl.GetItemCount()):
             pos = self.queue_ctrl.GetItem(s, col=2).GetText()
             if self.current_song.get('pos', '') == str(pos):
@@ -1167,8 +1183,8 @@ class MpdCmdFrame(wx.Frame):
             self.current_song.get('title', '?'),
             self.current_song.get('album', '?')))
         self.update_statusBarText()
-    """Show notification"""
     def showNotification(self) -> None:
+        """Show notification"""
         if self.preferences.get('notifications', True):
             notification = wx.adv.NotificationMessage(
                 "MPDCMD", "%s. %s - %s\r\n%s" % (
@@ -1181,44 +1197,44 @@ class MpdCmdFrame(wx.Frame):
                 self.current_song.get('album', ''))
             notification.SetIcon(wx.Icon(bitmap))
             notification.Show(5)
-    """Set the album art image for the currently playing song"""
     def setCurrentAlbumArt(self) -> None:
+        """Set the album art image for the currently playing song"""
         bitmap = self.mpd.getAlbumArt(
             self.current_song.get('artist', ''),
             self.current_song.get('album', ''))
         self.art.Bitmap = bitmap
 
-    """Update status bar text"""
     def update_statusBarText(self) -> None:
+        """Update status bar text"""
         self.SetStatusText("%s %s | %s:%s %s" % (
             self.current_song.get('file', 'FILE'),
             self.current_song.get('format', 'FORMAT'),
             self.mpd.host,
             self.mpd.port,
             self.connection_status))
-    """Update current song time text"""
     def updateCurrentSongTimeText(self):
+        """Update current song time text"""
         elapsed = self.seconds_to_time(self.elapsed)
         duration = self.seconds_to_time(self.duration)
         self.current_song_time.SetLabel("%s/%s" % (elapsed, duration))
 
-    """Play/pause clicked"""
     def OnPlay(self, _event: wx.CommandEvent) -> None:
+        """Play/pause clicked"""
         self.logger.debug("OnPlay()")
         if self.status.get('state', '') != 'play':
             self.mpd.play()
         else:
             self.mpd.pause()
-    """Next clicked"""
     def OnNext(self, _event: wx.CommandEvent) -> None:
+        """Next clicked"""
         self.logger.debug("OnNext()")
         self.mpd.next()
-    """Previous clicked"""
     def OnPrev(self, _event: wx.CommandEvent) -> None:
+        """Previous clicked"""
         self.logger.debug("OnPrev()")
         self.mpd.prev()
-    """Volume slider changed"""
     def OnVolChanged(self, _event: wx.CommandEvent) -> None:
+        """Volume slider changed"""
         vol = self.current_vol.GetValue()
         self.mpd.setVolume(int(vol))
     def OnVolChangeStart(self, _event) -> None:
@@ -1238,8 +1254,8 @@ class MpdCmdFrame(wx.Frame):
         consume = self.consume_check.GetValue()
         self.mpd.setConsume(consume)
 
-    """Preferences menu selected"""
     def OnMenuPref(self, _event: wx.CommandEvent) -> None:
+        """Preferences menu selected"""
         self.logger.debug("OnMenuPref()")
         preferences = MpdPreferencesFrame(
             self.preferences,
@@ -1247,28 +1263,28 @@ class MpdCmdFrame(wx.Frame):
             title='Preferences',
             size=(320,330))
         preferences.Show()
-    """About menu selected"""
     def OnMenuAbout(self, _event: wx.CommandEvent) -> None:
+        """About menu selected"""
         self.logger.debug("OnMenuAbout()")
         wx.MessageBox(
             "Music Player Daemon Command\r\nWxPython MPD Client",
             "About",
             wx.OK|wx.ICON_INFORMATION)
-    """Refresh menu selected"""
     def OnMenuRefresh(self, _event: wx.CommandEvent) -> None:
+        """Refresh menu selected"""
         self.logger.debug("OnMenuRefresh()")
         self.refresh()
-    """Update menu selected"""
     def OnMenuUpdate(self, _event: wx.CommandEvent) -> None:
+        """Update menu selected"""
         self.logger.debug("OnMenuUpdate()")
         self.mpd.update()
         wx.MessageBox("Update triggered", "Update", wx.OK|wx.ICON_INFORMATION)
-    """Exit menu selected"""
     def OnMenuExit(self, _event: wx.CommandEvent) -> None:
+        """Exit menu selected"""
         self.logger.debug("OMenuExit()")
         self.Close(True)
-    """On window/frame close"""
     def OnClose(self, _event: wx.CommandEvent) -> None:
+        """On window/frame close"""
         self.logger.debug("OnClose()")
         if self.mpd:
             self.mpd.stop()
@@ -1277,65 +1293,69 @@ class MpdCmdFrame(wx.Frame):
         self.timer.Stop()
         self.Destroy()
 
-    """Menu Queue Delete"""
+    def OnMenuQueueClear(self, _event: wx.CommandEvent) -> None:
+        """Menu Queue Clear"""
+        self.logger.info("Queue clear")
+        self.mpd.clearQueue()
     def OnMenuQueueDelete(self, _event: wx.CommandEvent) -> None:
+        """Menu Queue Delete"""
         queue_pos = self.queue_ctrl.GetItem(
             self.queue_ctrl.GetFirstSelected(), col=2).GetText()
         queue_pos = int(queue_pos)
         self.logger.info("Queue item delete %s", queue_pos)
         self.mpd.deleteQueuePos(queue_pos)
-    """Menu Queue Play"""
     def OnMenuQueuePlay(self, _event: wx.CommandEvent) -> None:
+        """Menu Queue Play"""
         queue_pos = self.queue_ctrl.GetItem(
             self.queue_ctrl.GetFirstSelected(), col=2).GetText()
         queue_pos = int(queue_pos)
         self.logger.info("Queue item play %s", queue_pos)
         self.mpd.playQueuePos(queue_pos)
 
-    """"""
     def OnMenuAlbumsAppend(self, _event) -> None:
+        """"""
         album_name = self.album_ctrl.GetItem(self.album_ctrl.GetFirstSelected(), col=1).GetText()
         self.logger.info("Albums item append %s", album_name)
         self.mpd.appendAlbumTag(album_name)
-    """"""
     def OnMenuAlbumsPlay(self, _event) -> None:
+        """"""
         album_name = self.album_ctrl.GetItem(self.album_ctrl.GetFirstSelected(), col=1).GetText()
         self.logger.info("Albums item play %s", album_name)
         self.mpd.playAlbumTag(album_name)
 
-    """"""
     def OnMenuSongsAppendSong(self, _event) -> None:
+        """"""
         song = self.songs_ctrl.GetItem(self.songs_ctrl.GetFirstSelected(), col=6).GetText()
         self.logger.debug("Songs item append song %s", song)
         self.mpd.appendSong(song)
-    """"""
     def OnMenuSongsPlaySong(self, _event) -> None:
+        """"""
         song = self.songs_ctrl.GetItem(self.songs_ctrl.GetFirstSelected(), col=6).GetText()
         self.logger.debug("Song item play song %s", song)
         self.mpd.playSong(song)
-    """"""
     def OnMenuSongsAppendAlbum(self, _event) -> None:
+        """"""
         album = self.songs_ctrl.GetItem(self.songs_ctrl.GetFirstSelected(), col=1).GetText()
         self.logger.debug("Songs item append album %s", album)
         self.mpd.appendAlbumTag(album)
-    """"""
     def OnMenuSongsPlayAlbum(self, _event) -> None:
+        """"""
         album = self.songs_ctrl.GetItem(self.songs_ctrl.GetFirstSelected(), col=1).GetText()
         self.logger.debug("Song item play album %s", album)
         self.mpd.playAlbumTag(album)
-    """"""
     def OnMenuSongsAppendArtist(self, _event) -> None:
+        """"""
         artist = self.songs_ctrl.GetItem(self.songs_ctrl.GetFirstSelected(), col=2).GetText()
         self.logger.debug("Songs item append artist %s", artist)
         self.mpd.appendArtistTag(artist)
-    """"""
     def OnMenuSongsPlayArtist(self, _event) -> None:
+        """"""
         artist = self.songs_ctrl.GetItem(self.songs_ctrl.GetFirstSelected(), col=2).GetText()
         self.logger.debug("Song item play artist %s", artist)
         self.mpd.playArtistTag(artist)
 
-"""Mpd main window"""
 class MpdPreferencesFrame(wx.Frame):
+    """Mpd main window"""
     def __init__(self, preferences, *args, **kw):
         wx.Frame.__init__(self, *args, **kw)
 
@@ -1395,12 +1415,12 @@ class MpdPreferencesFrame(wx.Frame):
         self.Bind(wx.EVT_BUTTON, self.on_save, save_button)
         self.sizer.Add(save_button, 0, wx.EXPAND|wx.ALL, 1)
 
-    """On save preferences"""
     def on_save(self, _event: wx.PyCommandEvent) -> None:
+        """On save preferences"""
         self.logger.debug("on_save()")
 
-    """On cancel preferences window"""
     def on_cancel(self, _event: wx.PyCommandEvent) -> None:
+        """On cancel preferences window"""
         self.logger.debug("on_cancel()")
 
 def main():
