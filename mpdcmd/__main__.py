@@ -978,33 +978,25 @@ class MpdCmdFrame(wx.Frame):
             wx.EVT_COMMAND_SCROLL_THUMBRELEASE, self.vol_scroll_thumbrelease, self.current_vol)
         tr_hori.Add(self.current_vol, 0, wx.EXPAND|wx.ALL, 1)
 
-        repeat_label = wx.StaticText(transport, label='Rpt')
-        tr_hori.Add(repeat_label, 0, wx.EXPAND|wx.ALL, 1)
-        self.repeat_check = wx.CheckBox(transport)
+        self.repeat_check = wx.CheckBox(transport, label="Rpt")
         self.repeat_check.SetValue(False)
         self.Bind(
             wx.EVT_CHECKBOX, self.on_repeat_changed, self.repeat_check)
         tr_hori.Add(self.repeat_check, 0, wx.EXPAND|wx.ALL, 1)
 
-        random_label = wx.StaticText(transport, label='Rnd')
-        tr_hori.Add(random_label, 0, wx.EXPAND|wx.ALL, 1)
-        self.random_check = wx.CheckBox(transport)
+        self.random_check = wx.CheckBox(transport, label="Rnd")
         self.random_check.SetValue(False)
         self.Bind(
             wx.EVT_CHECKBOX, self.on_random_changed, self.random_check)
         tr_hori.Add(self.random_check, 0, wx.EXPAND|wx.ALL, 1)
 
-        single_label = wx.StaticText(transport, label='Sgl')
-        tr_hori.Add(single_label, 0, wx.EXPAND|wx.ALL, 1)
-        self.single_check = wx.CheckBox(transport)
+        self.single_check = wx.CheckBox(transport, label="Sgl")
         self.single_check.SetValue(False)
         self.Bind(
             wx.EVT_CHECKBOX, self.on_single_changed, self.single_check)
         tr_hori.Add(self.single_check, 0, wx.EXPAND|wx.ALL, 1)
 
-        consume_label = wx.StaticText(transport, label='Cns')
-        tr_hori.Add(consume_label, 0, wx.EXPAND|wx.ALL, 1)
-        self.consume_check = wx.CheckBox(transport)
+        self.consume_check = wx.CheckBox(transport, label='Cns')
         self.consume_check.SetValue(False)
         self.Bind(
             wx.EVT_CHECKBOX, self.on_consume_changed, self.consume_check)
@@ -1359,7 +1351,7 @@ class MpdCmdFrame(wx.Frame):
             self.preferences,
             self,
             title='Preferences',
-            size=(320,390))
+            size=(320,340))
         preferences.Show()
     def on_menu_about(self, _event: wx.CommandEvent) -> None:
         """About menu selected"""
@@ -1491,26 +1483,17 @@ class MpdPreferencesFrame(wx.Frame):
         password_text = wx.TextCtrl(self.panel, value=self.preferences.get('password', ''))
         self.sizer.Add(password_text, 0, wx.EXPAND|wx.ALL, 1)
 
-        notifications_label = wx.StaticText(self.panel, label='Notifications')
-        self.sizer.Add(notifications_label, 0, wx.EXPAND|wx.ALL, 1)
-
-        notifications_check = wx.CheckBox(self.panel)
+        notifications_check = wx.CheckBox(self.panel, label="Notifications")
         notifications_check.SetValue(
             self.preferences.get('notifications', DEFAULT_OPTION_NOTIFICATIONS))
         self.sizer.Add(notifications_check, 0, wx.EXPAND|wx.ALL, 1)
 
-        mediakeys_label = wx.StaticText(self.panel, label='Media Keys')
-        self.sizer.Add(mediakeys_label, 0, wx.EXPAND|wx.ALL, 1)
-
-        mediakeys_check = wx.CheckBox(self.panel)
+        mediakeys_check = wx.CheckBox(self.panel, label="Media keys")
         mediakeys_check.SetValue(
             self.preferences.get('mediakeys', DEFAULT_OPTION_MEDIAKEYS))
         self.sizer.Add(mediakeys_check, 0, wx.EXPAND|wx.ALL, 1)
 
-        fetchallart_label = wx.StaticText(self.panel, label='Fetch all art')
-        self.sizer.Add(fetchallart_label, 0, wx.EXPAND|wx.ALL, 1)
-
-        fetchallart_check = wx.CheckBox(self.panel)
+        fetchallart_check = wx.CheckBox(self.panel, label="Fetch all art")
         fetchallart_check.SetValue(
             self.preferences.get('fetchallart', DEFAULT_OPTION_FETCHALLART))
         self.sizer.Add(fetchallart_check, 0, wx.EXPAND|wx.ALL, 1)
