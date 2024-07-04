@@ -1,40 +1,50 @@
 
-# create venv
+# MPD (Music Player Daemon) Client
 
-python -m venv --upgrade-deps venv
+Written in Python, wxPython
 
-# windows
-
-activate
-
-```venv/scripts/activate```
-
-deactivate
-
-```deactivate```
-
-install requirements
-
-```pip install -r requirements.txt```
-
-run
-
-```python .\mpdcmd\```
+Optionally uses pynput to listen for media keys
 
 ![Screenshot-Windows](Screenshot-Windows.png)
 
-# linux
+## How to run on windows
 
-activate
+### Create virtual environment
+
+```python -m venv --upgrade-deps venv```
+
+### Activate virtual environment
+
+```venv/scripts/activate```
+
+### Install requirements
+
+```pip install -r requirements.txt```
+
+### Run
+
+```python .\mpdcmd\```
+
+### Deactivate virtual environment
+
+```deactivate```
+
+## How to run on linux
+
+### Create virtual environment
+
+```python -m venv --upgrade-deps venv```
+
+### Activate
 
 ```source venv/bin/activate```
 
-install requirements
+### Install requirements
 
 on debian bookworm ```apt-get install libgtk-3-dev``` is required for wxPython
 
 ```pip install -r requirements.txt```
 
-run
+### Run
 
 ```python ./mpdcmd/```
