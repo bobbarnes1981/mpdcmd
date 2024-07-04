@@ -240,7 +240,7 @@ class MpdConnection():
 
 class MpdController():
     """Provides interface to MPD"""
-
+    # pylint: disable=too-many-public-methods
     def __init__(self, window: wx.Window, connection_config: dict):
         """Initialise the MpdController"""
         self.window = window
@@ -363,7 +363,7 @@ class MpdController():
                     cli,
                     song,
                     False)
-            except:
+            except Exception:
                 # ignore error and carry on
                 pass
         self.logger.debug("Fetch all art - end")
@@ -406,14 +406,14 @@ class MpdController():
 
     def refresh_albumart(self, song: dict, trigger_event: bool = True) -> None:
         """Refresh the albumart"""
+        threading.Thread(
+            target=self.connection.execute,
+            args=(self.__refresh_albumart, song, trigger_event)).start()
+    def __refresh_albumart(self, cli: musicpd.MPDClient, song: dict, trigger: bool) -> None:
+        self.logger.debug("refresh_albumart()")
         artist = song.get('artist', '')
         album = song.get('album', '')
         file = song.get('file', '')
-        threading.Thread(
-            target=self.connection.execute,
-            args=(self.__refresh_albumart, artist, album, file, trigger_event)).start()
-    def __refresh_albumart(self, cli: musicpd.MPDClient, artist, album, file, trigger) -> None:
-        self.logger.debug("refresh_albumart()")
         if not self.__albumart_exists(artist, album):
             album_art = {}
             offset = 0
@@ -762,6 +762,7 @@ class MpdIdleThread(threading.Thread):
 class MpdCmdFrame(wx.Frame):
     """The main frame for the MpdCmd application"""
     # pylint: disable=too-many-ancestors
+    # pylint: disable=too-many-instance-attributes
     def __init__(self, *args, **kw):
         """Initialise MpdCmdFrame"""
         wx.Frame.__init__(self, *args, **kw)
@@ -771,7 +772,7 @@ class MpdCmdFrame(wx.Frame):
         self.logger.info("Starting %s", type(self).__name__)
 
         self.preferences_file = os.path.join(os.path.curdir, 'preferences.json')
-        self.preferences = self.load_preferences()
+        self.preferences = self.__load_preferences()
 
         self.kbd_thread = None
         if self.preferences.get('mediakeys', DEFAULT_OPTION_MEDIAKEYS):
@@ -900,7 +901,7 @@ class MpdCmdFrame(wx.Frame):
         self.mpd.refresh_playlists()
         self.mpd.refresh_songs()
 
-    def load_preferences(self):
+    def __load_preferences(self):
         """Load preferences"""
         if os.path.isfile(self.preferences_file) is False:
             with open(self.preferences_file, 'w', encoding='utf-8') as file:
@@ -920,68 +921,85 @@ class MpdCmdFrame(wx.Frame):
         """Make the notebook"""
         notebook = wx.Notebook(parent)
 
-        self.queue_ctrl = wx.ListCtrl(notebook)
-        self.queue_ctrl.SetWindowStyleFlag(wx.LC_REPORT)
-        self.queue_ctrl.InsertColumn(0, "", width=20)
-        self.queue_ctrl.InsertColumn(1, "Id", width=50)
-        self.queue_ctrl.InsertColumn(2, "Position", width=70)
-        self.queue_ctrl.InsertColumn(3, "Album", width=150)
-        self.queue_ctrl.InsertColumn(4, "Artist", width=100)
-        self.queue_ctrl.InsertColumn(5, "Track", width=50)
-        self.queue_ctrl.InsertColumn(6, "Title", width=200)
-        self.queue_ctrl.InsertColumn(7, "Duration", width=70)
-        try:
-            self.queue_ctrl.SetColumnsOrder([0,1,2,3,4,5,6,7])
-        except NotImplementedError:
-            pass
-        self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.queue_item_activated, self.queue_ctrl)
+        self.queue_ctrl = self.__make_queue_ctrl(notebook)
         notebook.AddPage(self.queue_ctrl, "Queue")
-        self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.queue_context_menu, self.queue_ctrl)
 
-        self.album_ctrl = wx.ListCtrl(notebook)
-        self.album_ctrl.SetWindowStyleFlag(wx.LC_REPORT)
-        self.album_ctrl.InsertColumn(0, "", width=20)
-        self.album_ctrl.InsertColumn(1, "Album", width=150)
-        self.album_ctrl.InsertColumn(2, "Artist", width=100)
-        self.album_ctrl.InsertColumn(3, "Tracks", width=50)
-        self.album_ctrl.InsertColumn(4, "Duration", width=50)
-        try:
-            self.album_ctrl.SetColumnsOrder([0,1,2,3,4])
-        except NotImplementedError:
-            pass
-        self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.album_item_activated, self.album_ctrl)
+        self.album_ctrl = self.__make_albums_ctrl(notebook)
         notebook.AddPage(self.album_ctrl, "Albums")
-        self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.albums_context_menu, self.album_ctrl)
 
-        self.playlists_ctrl = wx.ListCtrl(notebook)
-        self.playlists_ctrl.SetWindowStyleFlag(wx.LC_REPORT)
-        self.playlists_ctrl.InsertColumn(0, "1", width=100)
-        try:
-            self.playlists_ctrl.SetColumnsOrder([0])
-        except NotImplementedError:
-            pass
-        self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.playlists_item_activated, self.playlists_ctrl)
+        self.playlists_ctrl = self.__make_playlists_ctrl(notebook)
         notebook.AddPage(self.playlists_ctrl, "Playlists")
-        self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.playlists_context_menu, self.playlists_ctrl)
 
-        self.songs_ctrl = wx.ListCtrl(notebook)
-        self.songs_ctrl.SetWindowStyleFlag(wx.LC_REPORT)
-        self.songs_ctrl.InsertColumn(0, "", width=20)
-        self.songs_ctrl.InsertColumn(1, "Album", width=150)
-        self.songs_ctrl.InsertColumn(2, "Artist", width=100)
-        self.songs_ctrl.InsertColumn(3, "Track", width=50)
-        self.songs_ctrl.InsertColumn(4, "Title", width=200)
-        self.songs_ctrl.InsertColumn(5, "Duration", width=70)
-        self.songs_ctrl.InsertColumn(6, "File", width=70)
-        try:
-            self.songs_ctrl.SetColumnsOrder([0,1,2,3,4,5,6])
-        except NotImplementedError:
-            pass
-        self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.song_item_activated, self.songs_ctrl)
+        self.songs_ctrl = self.__make_songs_ctrl(notebook)
         notebook.AddPage(self.songs_ctrl, "Songs")
-        self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.songs_context_menu, self.songs_ctrl)
 
         return notebook
+    def __make_queue_ctrl(self, parent: wx.Window) -> wx.ListCtrl:
+        """Make the queue control"""
+        queue_ctrl = wx.ListCtrl(parent)
+        queue_ctrl.SetWindowStyleFlag(wx.LC_REPORT)
+        queue_ctrl.InsertColumn(0, "", width=20)
+        queue_ctrl.InsertColumn(1, "Id", width=50)
+        queue_ctrl.InsertColumn(2, "Position", width=70)
+        queue_ctrl.InsertColumn(3, "Album", width=150)
+        queue_ctrl.InsertColumn(4, "Artist", width=100)
+        queue_ctrl.InsertColumn(5, "Track", width=50)
+        queue_ctrl.InsertColumn(6, "Title", width=200)
+        queue_ctrl.InsertColumn(7, "Duration", width=70)
+        try:
+            queue_ctrl.SetColumnsOrder([0,1,2,3,4,5,6,7])
+        except NotImplementedError:
+            pass
+        self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.queue_item_activated, queue_ctrl)
+        self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.queue_context_menu, queue_ctrl)
+        return queue_ctrl
+    def __make_albums_ctrl(self, parent: wx.Window) -> wx.ListCtrl:
+        """Make the albums control"""
+        album_ctrl = wx.ListCtrl(parent)
+        album_ctrl.SetWindowStyleFlag(wx.LC_REPORT)
+        album_ctrl.InsertColumn(0, "", width=20)
+        album_ctrl.InsertColumn(1, "Album", width=150)
+        album_ctrl.InsertColumn(2, "Artist", width=100)
+        album_ctrl.InsertColumn(3, "Tracks", width=50)
+        album_ctrl.InsertColumn(4, "Duration", width=50)
+        try:
+            album_ctrl.SetColumnsOrder([0,1,2,3,4])
+        except NotImplementedError:
+            pass
+        self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.album_item_activated, album_ctrl)
+        self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.albums_context_menu, album_ctrl)
+        return album_ctrl
+    def __make_playlists_ctrl(self, parent: wx.Window) -> wx.ListCtrl:
+        """Make the playlists control"""
+        playlists_ctrl = wx.ListCtrl(parent)
+        playlists_ctrl.SetWindowStyleFlag(wx.LC_REPORT)
+        playlists_ctrl.InsertColumn(0, "1", width=100)
+        try:
+            playlists_ctrl.SetColumnsOrder([0])
+        except NotImplementedError:
+            pass
+        self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.playlists_item_activated, playlists_ctrl)
+        self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.playlists_context_menu, playlists_ctrl)
+        return playlists_ctrl
+    def __make_songs_ctrl(self, parent: wx.Window) -> wx.ListCtrl:
+        """Make the songs control"""
+        songs_ctrl = wx.ListCtrl(parent)
+        songs_ctrl.SetWindowStyleFlag(wx.LC_REPORT)
+        songs_ctrl.InsertColumn(0, "", width=20)
+        songs_ctrl.InsertColumn(1, "Album", width=150)
+        songs_ctrl.InsertColumn(2, "Artist", width=100)
+        songs_ctrl.InsertColumn(3, "Track", width=50)
+        songs_ctrl.InsertColumn(4, "Title", width=200)
+        songs_ctrl.InsertColumn(5, "Duration", width=70)
+        songs_ctrl.InsertColumn(6, "File", width=70)
+        try:
+            songs_ctrl.SetColumnsOrder([0,1,2,3,4,5,6])
+        except NotImplementedError:
+            pass
+        self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.song_item_activated, songs_ctrl)
+        self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.songs_context_menu, songs_ctrl)
+        return songs_ctrl
+
     def make_transport(self, parent) -> wx.Panel:
         """Make the transport"""
         transport = wx.Panel(parent)
