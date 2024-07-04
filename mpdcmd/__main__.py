@@ -21,7 +21,7 @@ def get_icon(file):
     """Get the icon"""
     icon = wx.Icon()
     icon.LoadFile(
-        os.path.join(os.path.curdir, 'mpdcmd', 'icons', "%s.png" % file),
+        os.path.join(os.path.curdir, 'mpdcmd', 'icons', f"{file}.png"),
         type=wx.BITMAP_TYPE_PNG)
     return icon
 
@@ -29,11 +29,12 @@ mcEVT_MPD_CONNECTION = wx.NewEventType()
 EVT_MPD_CONNECTION = wx.PyEventBinder(mcEVT_MPD_CONNECTION, 1)
 class MpdConnectionEvent(wx.PyCommandEvent):
     """MPD connection event"""
+    # pylint: disable=too-few-public-methods
     def __init__(self, value: str):
         """Initialise the event"""
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_CONNECTION, -1)
         self._value = value
-    def GetValue(self) -> str:
+    def get_value(self) -> str:
         """Get the value"""
         return self._value
 
@@ -41,11 +42,12 @@ mcEVT_MPD_STATS = wx.NewEventType()
 EVT_MPD_STATS = wx.PyEventBinder(mcEVT_MPD_STATS, 1)
 class MpdStatsEvent(wx.PyCommandEvent):
     """MPD stats event"""
+    # pylint: disable=too-few-public-methods
     def __init__(self, value: dict):
         """Initialise the event"""
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_STATS, -1)
         self._value = value
-    def GetValue(self) -> dict:
+    def get_value(self) -> dict:
         """Get the value"""
         return self._value
 
@@ -53,11 +55,12 @@ mcEVT_MPD_STATUS = wx.NewEventType()
 EVT_MPD_STATUS = wx.PyEventBinder(mcEVT_MPD_STATUS, 1)
 class MpdStatusEvent(wx.PyCommandEvent):
     """MPD status event"""
+    # pylint: disable=too-few-public-methods
     def __init__(self, value: dict):
         """Initialise the event"""
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_STATUS, -1)
         self._value = value
-    def GetValue(self) -> dict:
+    def get_value(self) -> dict:
         """Get the value"""
         return self._value
 
@@ -65,11 +68,12 @@ mcEVT_MPD_SONGS = wx.NewEventType()
 EVT_MPD_SONGS = wx.PyEventBinder(mcEVT_MPD_SONGS, 1)
 class MpdSongsEvent(wx.PyCommandEvent):
     """MPD songs event"""
+    # pylint: disable=too-few-public-methods
     def __init__(self, value: list):
         """Initialise the event"""
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_SONGS, -1)
         self._value = value
-    def GetValue(self) -> list:
+    def get_value(self) -> list:
         """Get the value"""
         return self._value
 
@@ -77,11 +81,12 @@ mcEVT_MPD_PLAYLISTS = wx.NewEventType()
 EVT_MPD_PLAYLISTS = wx.PyEventBinder(mcEVT_MPD_PLAYLISTS, 1)
 class MpdPlaylistsEvent(wx.PyCommandEvent):
     """MPD playlists event"""
+    # pylint: disable=too-few-public-methods
     def __init__(self, value: list):
         """Initialise the event"""
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_PLAYLISTS, -1)
         self._value = value
-    def GetValue(self) -> list:
+    def get_value(self) -> list:
         """Get the value"""
         return self._value
 
@@ -89,11 +94,12 @@ mcEVT_MPD_ALBUMART = wx.NewEventType()
 EVT_MPD_ALBUMART = wx.PyEventBinder(mcEVT_MPD_ALBUMART, 1)
 class MpdAlbumArtEvent(wx.PyCommandEvent):
     """MPD albums event"""
+    # pylint: disable=too-few-public-methods
     def __init__(self, value: str):
         """Initialise the event"""
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_ALBUMART, -1)
         self._value = value
-    def GetValue(self) -> str:
+    def get_value(self) -> str:
         """Get the value"""
         return self._value
 
@@ -101,11 +107,12 @@ mcEVT_MPD_CTRL_CURRENTSONG = wx.NewEventType()
 EVT_MPD_CTRL_CURRENTSONG = wx.PyEventBinder(mcEVT_MPD_CTRL_CURRENTSONG, 1)
 class MpdCurrentSongEvent(wx.PyCommandEvent):
     """MPD current song event"""
+    # pylint: disable=too-few-public-methods
     def __init__(self, value: dict):
         """Initialise the event"""
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_CTRL_CURRENTSONG, -1)
         self._value = value
-    def GetValue(self) -> dict:
+    def get_value(self) -> dict:
         """Get the value"""
         return self._value
 
@@ -113,11 +120,12 @@ mcEVT_MPD_CTRL_QUEUE = wx.NewEventType()
 EVT_MPD_CTRL_QUEUE = wx.PyEventBinder(mcEVT_MPD_CTRL_QUEUE, 1)
 class MpdQueueEvent(wx.PyCommandEvent):
     """MPD queue event"""
+    # pylint: disable=too-few-public-methods
     def __init__(self, value: list):
         """Initialise the event"""
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_CTRL_QUEUE, -1)
         self._value = value
-    def GetValue(self) -> list:
+    def get_value(self) -> list:
         """Get the value"""
         return self._value
 
@@ -125,11 +133,12 @@ mcEVT_MPD_CTRL_ALBUMS = wx.NewEventType()
 EVT_MPD_CTRL_ALBUMS = wx.PyEventBinder(mcEVT_MPD_CTRL_ALBUMS, 1)
 class MpdAlbumsEvent(wx.PyCommandEvent):
     """MPD albums event"""
+    # pylint: disable=too-few-public-methods
     def __init__(self, value: list):
         """Initialise the event"""
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_CTRL_ALBUMS, -1)
         self._value = value
-    def GetValue(self) -> list:
+    def get_value(self) -> list:
         """Get the value"""
         return self._value
 
@@ -137,6 +146,7 @@ mcEVT_MPD_IDLE_PLAYER = wx.NewEventType()
 EVT_MPD_IDLE_PLAYER = wx.PyEventBinder(mcEVT_MPD_IDLE_PLAYER, 1)
 class MpdIdlePlayerEvent(wx.PyCommandEvent):
     """MPD idle player event"""
+    # pylint: disable=too-few-public-methods
     def __init__(self):
         """Initialise the event"""
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_IDLE_PLAYER, -1)
@@ -145,6 +155,7 @@ mcEVT_MPD_IDLE_MIXER = wx.NewEventType()
 EVT_MPD_IDLE_MIXER = wx.PyEventBinder(mcEVT_MPD_IDLE_MIXER, 1)
 class MpdIdleMixerEvent(wx.PyCommandEvent):
     """MPD idle mixer event"""
+    # pylint: disable=too-few-public-methods
     def __init__(self):
         """Initialise the event"""
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_IDLE_MIXER, -1)
@@ -153,6 +164,7 @@ mcEVT_MPD_IDLE_PLAYLIST = wx.NewEventType()
 EVT_MPD_IDLE_PLAYLIST = wx.PyEventBinder(mcEVT_MPD_IDLE_PLAYLIST, 1)
 class MpdIdlePlaylistEvent(wx.PyCommandEvent):
     """MPD idle playlists event"""
+    # pylint: disable=too-few-public-methods
     def __init__(self):
         """Initialise the event"""
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_IDLE_PLAYLIST, -1)
@@ -161,6 +173,7 @@ mcEVT_MPD_IDLE_UPDATE = wx.NewEventType()
 EVT_MPD_IDLE_UPDATE = wx.PyEventBinder(mcEVT_MPD_IDLE_UPDATE, 1)
 class MpdIdleUpdateEvent(wx.PyCommandEvent):
     """MPD idle update event"""
+    # pylint: disable=too-few-public-methods
     def __init__(self):
         """Initialise the event"""
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_IDLE_UPDATE, -1)
@@ -169,6 +182,7 @@ mcEVT_MPD_IDLE_DATABASE = wx.NewEventType()
 EVT_MPD_IDLE_DATABASE = wx.PyEventBinder(mcEVT_MPD_IDLE_DATABASE, 1)
 class MpdIdleDatabaseEvent(wx.PyCommandEvent):
     """MPD idle database event"""
+    # pylint: disable=too-few-public-methods
     def __init__(self):
         """Initialise the event"""
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_IDLE_DATABASE, -1)
@@ -177,20 +191,21 @@ mcEVT_MPD_IDLE_OPTIONS = wx.NewEventType()
 EVT_MPD_IDLE_OPTIONS = wx.PyEventBinder(mcEVT_MPD_IDLE_OPTIONS, 1)
 class MpdIdleOptionsEvent(wx.PyCommandEvent):
     """MPD idle options event"""
+    # pylint: disable=too-few-public-methods
     def __init__(self):
         """Initialise the event"""
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_IDLE_OPTIONS, -1)
 
 class MpdConnection():
     """Handles executing requests to MPD"""
-
-    def __init__(self, window: wx.Window, host: str, port: str, username: str, password: str):
+    # pylint: disable=too-few-public-methods
+    def __init__(self, window: wx.Window, config: dict):
         """Initialise the MpdConnection"""
         self.window = window
-        self.host = host
-        self.port = port
-        self.username = username
-        self.password = password
+        self.host = config.get('host', '')
+        self.port = config.get('port', '')
+        self.username = config.get('username', '')
+        self.password = config.get('password', '')
 
         if not self.host:
             self.host = '127.0.0.1'
@@ -226,20 +241,16 @@ class MpdConnection():
 class MpdController():
     """Provides interface to MPD"""
 
-    def __init__(self, window: wx.Window, host: str, port: str, username: str, password:str):
+    def __init__(self, window: wx.Window, connection_config: dict):
         """Initialise the MpdController"""
         self.window = window
-        self.host = host
-        self.port = port
-        self.username = username
-        self.password = password
 
         self.art_folder = 'albumart'
 
         self.logger = logging.getLogger(type(self).__name__)
         self.logger.info("Starting %s", type(self).__name__)
 
-        self.connection = MpdConnection(self.window, host, port, username, password)
+        self.connection = MpdConnection(self.window, connection_config)
 
         self.stats = {}
         self.status = {}
@@ -350,9 +361,7 @@ class MpdController():
             try:
                 self.__refresh_albumart(
                     cli,
-                    song.get('artist', ''),
-                    song.get('album', ''),
-                    song.get('file', ''),
+                    song,
                     False)
             except:
                 # ignore error and carry on
@@ -395,8 +404,11 @@ class MpdController():
         playlists = cli.listplaylists()
         wx.PostEvent(self.window, MpdPlaylistsEvent(playlists))
 
-    def refresh_albumart(self, artist, album, file, trigger_event = True) -> None:
+    def refresh_albumart(self, song: dict, trigger_event: bool = True) -> None:
         """Refresh the albumart"""
+        artist = song.get('artist', '')
+        album = song.get('album', '')
+        file = song.get('file', '')
         threading.Thread(
             target=self.connection.execute,
             args=(self.__refresh_albumart, artist, album, file, trigger_event)).start()
@@ -749,7 +761,7 @@ class MpdIdleThread(threading.Thread):
 
 class MpdCmdFrame(wx.Frame):
     """The main frame for the MpdCmd application"""
-
+    # pylint: disable=too-many-ancestors
     def __init__(self, *args, **kw):
         """Initialise MpdCmdFrame"""
         wx.Frame.__init__(self, *args, **kw)
@@ -763,17 +775,14 @@ class MpdCmdFrame(wx.Frame):
 
         self.kbd_thread = None
         if self.preferences.get('mediakeys', DEFAULT_OPTION_MEDIAKEYS):
-            self.logger.warn("Keyboard listener (pynput) enabled")
+            self.logger.warning("Keyboard listener (pynput) enabled")
             self.kbd_thread = Listener(on_press=self.__key_press, on_release=None)
             self.kbd_thread.start()
 
         # init mpd
         self.mpd = MpdController(
             self,
-            self.preferences.get('host', ''),
-            self.preferences.get('port', ''),
-            self.preferences.get('username', ''),
-            self.preferences.get('password', ''))
+            self.preferences)
 
         self.Bind(EVT_MPD_CONNECTION, self.on_connection_changed)
         self.Bind(EVT_MPD_STATS, self.on_stats_changed)
@@ -894,7 +903,7 @@ class MpdCmdFrame(wx.Frame):
     def load_preferences(self):
         """Load preferences"""
         if os.path.isfile(self.preferences_file) is False:
-            with open(self.preferences_file, 'w') as file:
+            with open(self.preferences_file, 'w', encoding='utf-8') as file:
                 preferences = {
                     "host":"",
                     "port":"",
@@ -904,7 +913,7 @@ class MpdCmdFrame(wx.Frame):
                     "mediakeys":DEFAULT_OPTION_MEDIAKEYS,
                     "fetchallart":DEFAULT_OPTION_FETCHALLART}
                 file.write(json.dumps(preferences))
-        with open(self.preferences_file, 'r') as f:
+        with open(self.preferences_file, 'r', encoding='utf-8') as f:
             return json.loads(f.read())
 
     def make_notebook(self, parent) -> wx.Notebook:
@@ -1056,7 +1065,7 @@ class MpdCmdFrame(wx.Frame):
 
     def seconds_to_time(self, seconds: float) -> str:
         """Convert seconds to time"""
-        return "%02d:%02d" % (seconds//60, seconds%60)
+        return "%02d:%02d" % (seconds//60, seconds%60) # pylint: disable=consider-using-f-string
 
     def on_tick(self, _event: wx.TimerEvent) -> None:
         """On timer tick"""
@@ -1067,23 +1076,23 @@ class MpdCmdFrame(wx.Frame):
 
     def on_connection_changed(self, event: MpdConnectionEvent) -> None:
         """MPD connection changed"""
-        self.connection_status = event.GetValue()
+        self.connection_status = event.get_value()
         self.logger.info("Connection changed %s", self.connection_status)
         self.update_statusbar_text()
     def on_stats_changed(self, event: MpdStatsEvent) -> None:
         """MPD stats changed"""
-        stats = event.GetValue()
+        stats = event.get_value()
         self.logger.info("Stats changed %s", stats)
         self.update_title(stats)
     def on_status_changed(self, event: MpdStatusEvent) -> None:
         """MPD status changed"""
-        self.status = event.GetValue()
+        self.status = event.get_value()
         self.logger.info("Status changed %s", self.status)
         self.update_status()
         self.mpd.refresh_current_song()
     def on_songs_changed(self, event: MpdSongsEvent) -> None:
         """MPD songs changed"""
-        songs = event.GetValue()
+        songs = event.get_value()
         self.logger.info("Songs changed %s", len(songs))
         self.songs_ctrl.DeleteAllItems()
         for song in songs:
@@ -1100,14 +1109,14 @@ class MpdCmdFrame(wx.Frame):
             self.mpd.fetch_all_albumart(songs)
     def on_playlists_changed(self, event: MpdPlaylistsEvent) -> None:
         """MPD playlists changed"""
-        playlists = event.GetValue()
+        playlists = event.get_value()
         self.logger.info("Playlists changed %s", playlists)
         self.playlists_ctrl.DeleteAllItems()
         for playlist in playlists:
             self.playlists_ctrl.Append(playlist)
     def on_albumart_changed(self, event: MpdAlbumArtEvent) -> None:
         """MPD albumart changed"""
-        songid = event.GetValue()
+        songid = event.get_value()
         self.logger.info("Albumart changed %s", songid)
         self.set_current_albumart()
 
@@ -1163,16 +1172,13 @@ class MpdCmdFrame(wx.Frame):
 
     def on_current_song_changed(self, event: MpdCurrentSongEvent) -> None:
         """MPD current song changed"""
-        self.current_song = event.GetValue()
+        self.current_song = event.get_value()
         self.logger.info("Song changed %s", self.current_song)
-        self.mpd.refresh_albumart(
-            self.current_song.get('artist', ''),
-            self.current_song.get('album', ''),
-            self.current_song.get('file', ''))
+        self.mpd.refresh_albumart(self.current_song)
         self.update_current_song()
     def on_albums_changed(self, event: MpdAlbumsEvent) -> None:
         """Albums changed"""
-        albums = event.GetValue()
+        albums = event.get_value()
         self.logger.info("Albums changed %d", len(albums))
         self.album_ctrl.DeleteAllItems()
         for album in albums:
@@ -1184,7 +1190,7 @@ class MpdCmdFrame(wx.Frame):
                 self.seconds_to_time(float(album.get('duration', '')))])
     def on_queue_changed(self, event: MpdQueueEvent) -> None:
         """Queue changed"""
-        queue = event.GetValue()
+        queue = event.get_value()
         self.logger.info("Queue changed %s", len(queue))
         self.queue_ctrl.DeleteAllItems()
         for idx,song in enumerate(queue):
@@ -1220,8 +1226,8 @@ class MpdCmdFrame(wx.Frame):
         """Idle database event"""
         self.logger.debug("Idle database")
         # TODO: refresh albums and songs?
-    """Idle options event"""
     def on_idle_options(self, _event: MpdIdleOptionsEvent) -> None:
+        """Idle options event"""
         self.logger.debug("Idle options")
         self.mpd.refresh_status()
 
@@ -1250,6 +1256,8 @@ class MpdCmdFrame(wx.Frame):
 
     def update_title(self, stats: dict) -> None:
         """Update the title text"""
+        # pylint: disable=consider-using-f-string
+        # pylint: disable=invalid-name
         self.Title = "MPDCMD [Artists %s Albums %s Songs %s]" % (
             stats.get('artists', '?'),
             stats.get('albums', '?'),
@@ -1293,6 +1301,7 @@ class MpdCmdFrame(wx.Frame):
                 self.queue_ctrl.SetItem(s, 0, ' ')
         self.show_notification()
         self.set_current_albumart()
+        # pylint: disable=consider-using-f-string
         self.current_song_text.SetLabel("%s. %s - %s (%s)" % (
             self.current_song.get('track', '?'),
             self.current_song.get('artist', '?'),
@@ -1302,6 +1311,7 @@ class MpdCmdFrame(wx.Frame):
     def show_notification(self) -> None:
         """Show notification"""
         if self.preferences.get('notifications', True):
+            # pylint: disable=consider-using-f-string
             notification = wx.adv.NotificationMessage(
                 "MPDCMD", "%s. %s - %s\r\n%s" % (
                     self.current_song.get('track', '?'),
@@ -1322,11 +1332,12 @@ class MpdCmdFrame(wx.Frame):
 
     def update_statusbar_text(self) -> None:
         """Update status bar text"""
+        # pylint: disable=consider-using-f-string
         self.SetStatusText("%s %s | %s:%s %s" % (
             self.current_song.get('file', 'FILE'),
             self.current_song.get('format', 'FORMAT'),
-            self.mpd.host,
-            self.mpd.port,
+            self.preferences.get('host', ''),
+            self.preferences.get('port', ''),
             self.connection_status))
     def update_current_song_time_text(self):
         """Update current song time text"""
@@ -1485,6 +1496,8 @@ class MpdCmdFrame(wx.Frame):
 
 class MpdPreferencesFrame(wx.Frame):
     """Mpd main window"""
+    # pylint: disable=too-many-instance-attributes
+    # pylint: disable=too-many-ancestors
     def __init__(self, preferences, *args, **kw):
         wx.Frame.__init__(self, *args, **kw)
 
@@ -1501,41 +1514,41 @@ class MpdPreferencesFrame(wx.Frame):
         host_label = wx.StaticText(self.panel, label='Host')
         self.sizer.Add(host_label, 0, wx.EXPAND|wx.ALL, 1)
 
-        host_text = wx.TextCtrl(self.panel, value=self.preferences.get('host', ''))
-        self.sizer.Add(host_text, 0, wx.EXPAND|wx.ALL, 1)
+        self.host_text = wx.TextCtrl(self.panel, value=self.preferences.get('host', ''))
+        self.sizer.Add(self.host_text, 0, wx.EXPAND|wx.ALL, 1)
 
         port_label = wx.StaticText(self.panel, label='Port')
         self.sizer.Add(port_label, 0, wx.EXPAND|wx.ALL, 1)
 
-        port_text = wx.TextCtrl(self.panel, value=self.preferences.get('port', ''))
-        self.sizer.Add(port_text, 0, wx.EXPAND|wx.ALL, 1)
+        self.port_text = wx.TextCtrl(self.panel, value=self.preferences.get('port', ''))
+        self.sizer.Add(self.port_text, 0, wx.EXPAND|wx.ALL, 1)
 
         username_label = wx.StaticText(self.panel, label='Username')
         self.sizer.Add(username_label, 0, wx.EXPAND|wx.ALL, 1)
 
-        username_text = wx.TextCtrl(self.panel, value=self.preferences.get('username', ''))
-        self.sizer.Add(username_text, 0, wx.EXPAND|wx.ALL, 1)
+        self.username_text = wx.TextCtrl(self.panel, value=self.preferences.get('username', ''))
+        self.sizer.Add(self.username_text, 0, wx.EXPAND|wx.ALL, 1)
 
         password_label = wx.StaticText(self.panel, label='Password')
         self.sizer.Add(password_label, 0, wx.EXPAND|wx.ALL, 1)
 
-        password_text = wx.TextCtrl(self.panel, value=self.preferences.get('password', ''))
-        self.sizer.Add(password_text, 0, wx.EXPAND|wx.ALL, 1)
+        self.password_text = wx.TextCtrl(self.panel, value=self.preferences.get('password', ''))
+        self.sizer.Add(self.password_text, 0, wx.EXPAND|wx.ALL, 1)
 
-        notifications_check = wx.CheckBox(self.panel, label="Notifications")
-        notifications_check.SetValue(
+        self.notifications_check = wx.CheckBox(self.panel, label="Notifications")
+        self.notifications_check.SetValue(
             self.preferences.get('notifications', DEFAULT_OPTION_NOTIFICATIONS))
-        self.sizer.Add(notifications_check, 0, wx.EXPAND|wx.ALL, 1)
+        self.sizer.Add(self.notifications_check, 0, wx.EXPAND|wx.ALL, 1)
 
-        mediakeys_check = wx.CheckBox(self.panel, label="Media keys")
-        mediakeys_check.SetValue(
+        self.mediakeys_check = wx.CheckBox(self.panel, label="Media keys")
+        self.mediakeys_check.SetValue(
             self.preferences.get('mediakeys', DEFAULT_OPTION_MEDIAKEYS))
-        self.sizer.Add(mediakeys_check, 0, wx.EXPAND|wx.ALL, 1)
+        self.sizer.Add(self.mediakeys_check, 0, wx.EXPAND|wx.ALL, 1)
 
-        fetchallart_check = wx.CheckBox(self.panel, label="Fetch all art")
-        fetchallart_check.SetValue(
+        self.fetchallart_check = wx.CheckBox(self.panel, label="Fetch all art")
+        self.fetchallart_check.SetValue(
             self.preferences.get('fetchallart', DEFAULT_OPTION_FETCHALLART))
-        self.sizer.Add(fetchallart_check, 0, wx.EXPAND|wx.ALL, 1)
+        self.sizer.Add(self.fetchallart_check, 0, wx.EXPAND|wx.ALL, 1)
 
         cancel_button = wx.Button(self.panel, label="Cancel")
         self.Bind(wx.EVT_BUTTON, self.on_cancel, cancel_button)
