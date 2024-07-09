@@ -232,7 +232,7 @@ class MpdConnection():
                 func(client, *args)
         except musicpd.MPDError as e:
             connection_status = "Connection error"
-            self.logger.warning("Connection error %s", func.__name__)
+            self.logger.warning("Connection error %s %s", func.__name__, args)
             self.logger.warning(e)
         if self.connection_status != connection_status:
             self.connection_status = connection_status
