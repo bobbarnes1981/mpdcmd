@@ -1346,9 +1346,9 @@ class MpdCmdFrame(wx.Frame):
                 album))
         if name:
             # music stream (title can be empty)
-            self.current_song_text.SetLabel("%s %s" % (
-                name,
-                title))
+            self.current_song_text.SetLabel("%s (%s)" % (
+                title,
+                name))
         self.update_statusbar_text()
     def show_notification(self) -> None:
         """Show notification"""
