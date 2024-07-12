@@ -1066,12 +1066,17 @@ class MpdCmdFrame(wx.Frame):
         refresh_item = server_menu.Append(-1, "&Refresh", "Refresh from server")
         update_item = server_menu.Append(-1, "&Update", "Trigger a server update")
 
+        queue_menu = wx.Menu()
+        append_item = queue_menu.Append(-1, "&Append", "Append item to queue")
+        clear_item = queue_menu.Append(-1, "&Clear", "Clear queue items")
+
         help_menu = wx.Menu()
         about_item = help_menu.Append(wx.ID_ABOUT)
 
         menu_bar = wx.MenuBar()
         menu_bar.Append(file_menu, "&File")
         menu_bar.Append(server_menu, "&Server")
+        menu_bar.Append(queue_menu, "&Queue")
         menu_bar.Append(help_menu, "&Help")
         self.SetMenuBar(menu_bar)
 
@@ -1079,6 +1084,8 @@ class MpdCmdFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_menu_exit, exit_item)
         self.Bind(wx.EVT_MENU, self.on_menu_refresh, refresh_item)
         self.Bind(wx.EVT_MENU, self.on_menu_update, update_item)
+        self.Bind(wx.EVT_MENU, self.on_menu_append, append_item)
+        self.Bind(wx.EVT_MENU, self.on_menu_clear, clear_item)
         self.Bind(wx.EVT_MENU, self.on_menu_about, about_item)
 
     def seconds_to_time(self, seconds: float) -> str:
@@ -1213,17 +1220,22 @@ class MpdCmdFrame(wx.Frame):
         self.queue_ctrl.DeleteAllItems()
         for idx,song in enumerate(queue):
             prefix = ''
-            if self.current_song.get('pos', '') == str(idx):
+            if song.get('pos', '') == str(idx):
                 prefix = '>'
+            track = song.get('track', None)
+            artist = song.get('artist', None)
+            title = song.get('title', None)
+            album = song.get('album', None)
+            name = song.get('name', None)
             self.queue_ctrl.Append([
                 prefix,
                 song['id'],
                 song['pos'],
-                song['album'],
-                song['artist'],
-                song['track'],
-                song['title'],
-                self.seconds_to_time(float(song['duration']))])
+                album,
+                artist,
+                track,
+                title,
+                self.seconds_to_time(float(song.get('duration', '0')))])
 
     def on_idle_player(self, _event: MpdIdlePlayerEvent) -> None:
         """Idle player event"""
@@ -1319,23 +1331,48 @@ class MpdCmdFrame(wx.Frame):
                 self.queue_ctrl.SetItem(s, 0, ' ')
         self.show_notification()
         self.set_current_albumart()
-        # pylint: disable=consider-using-f-string
-        self.current_song_text.SetLabel("%s. %s - %s (%s)" % (
-            self.current_song.get('track', '?'),
-            self.current_song.get('artist', '?'),
-            self.current_song.get('title', '?'),
-            self.current_song.get('album', '?')))
+        track = self.current_song.get('track', None)
+        artist = self.current_song.get('artist', None)
+        title = self.current_song.get('title', None)
+        album = self.current_song.get('album', None)
+        name = self.current_song.get('name', None)
+        if track and artist and title and album:
+            # music file
+            # pylint: disable=consider-using-f-string
+            self.current_song_text.SetLabel("%s. %s - %s (%s)" % (
+                track,
+                artist,
+                title,
+                album))
+        if name:
+            # music stream (title can be empty)
+            self.current_song_text.SetLabel("%s %s" % (
+                name,
+                title))
         self.update_statusbar_text()
     def show_notification(self) -> None:
         """Show notification"""
         if self.preferences.get('notifications', True):
-            # pylint: disable=consider-using-f-string
-            notification = wx.adv.NotificationMessage(
-                "MPDCMD", "%s. %s - %s\r\n%s" % (
-                    self.current_song.get('track', '?'),
-                    self.current_song.get('artist', '?'),
-                    self.current_song.get('title', '?'),
-                    self.current_song.get('album', '?')))
+            track = self.current_song.get('track', None)
+            artist = self.current_song.get('artist', None)
+            title = self.current_song.get('title', None)
+            album = self.current_song.get('album', None)
+            name = self.current_song.get('name', None)
+            if track and artist and title and album:
+                # music file
+                # pylint: disable=consider-using-f-string
+                notification = wx.adv.NotificationMessage(
+                    "MPDCMD", "%s. %s - %s\r\n%s" % (
+                        self.current_song.get('track', '?'),
+                        self.current_song.get('artist', '?'),
+                        self.current_song.get('title', '?'),
+                        self.current_song.get('album', '?')))
+            if name:
+                # music stream (title can be empty)
+                notification = wx.adv.NotificationMessage(
+                    "MPDCMD", "%s\r\n%s" % (
+                        self.current_song.get('name', '?'),
+                        self.current_song.get('title', '?')))
             bitmap = self.mpd.get_albumart(
                 self.current_song.get('artist', ''),
                 self.current_song.get('album', ''))
@@ -1411,6 +1448,18 @@ class MpdCmdFrame(wx.Frame):
             title='Preferences',
             size=(320,340))
         preferences.Show()
+    def on_menu_append(self, _Event: wx.CommandEvent) -> None:
+        """Append menu selected"""
+        self.logger.debug("on_menu_append()")
+        add = MpdAppendFrame(
+            self,
+            title='Append',
+            size=(320,140))
+        add.Show()
+    def on_menu_clear(self, _Event: wx.CommandEvent) -> None:
+        """Clear menu selected"""
+        self.logger.debug("on_menu_clear()")
+        self.mpd.clear_queue()
     def on_menu_about(self, _event: wx.CommandEvent) -> None:
         """About menu selected"""
         self.logger.debug("on_menu_about()")
@@ -1512,6 +1561,44 @@ class MpdCmdFrame(wx.Frame):
         self.logger.debug("Song item play artist %s", artist)
         self.mpd.play_artist_tag(artist)
 
+class MpdAppendFrame(wx.Frame):
+    """Append window"""
+    def __init__(self, *args, **kw):
+        wx.Frame.__init__(self, *args, **kw)
+
+        self.logger = logging.getLogger(type(self).__name__)
+        self.logger.info("Starting %s", type(self).__name__)
+        
+        self.panel = wx.Panel(self)
+
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.panel.SetSizer(self.sizer)
+
+        append_label = wx.StaticText(self.panel, label='Append')
+        self.sizer.Add(append_label, 0, wx.EXPAND|wx.ALL, 1)
+
+        self.append_text = wx.TextCtrl(self.panel, value='')
+        self.sizer.Add(self.append_text, 0, wx.EXPAND|wx.ALL, 1)
+
+        cancel_button = wx.Button(self.panel, label="Cancel")
+        self.Bind(wx.EVT_BUTTON, self.on_cancel, cancel_button)
+        self.sizer.Add(cancel_button, 0, wx.EXPAND|wx.ALL, 1)
+
+        append_button = wx.Button(self.panel, label="Append")
+        self.Bind(wx.EVT_BUTTON, self.on_append, append_button)
+        self.sizer.Add(append_button, 0, wx.EXPAND|wx.ALL, 1)
+
+    def on_append(self, _event: wx.PyCommandEvent) -> None:
+        """On append"""
+        self.logger.debug("on_append()")
+        self.Parent.mpd.play_song(self.append_text.Value)
+        self.Close()
+
+    def on_cancel(self, _event: wx.PyCommandEvent) -> None:
+        """On cancel"""
+        self.logger.debug("on_cancel()")
+        self.Close()
+
 class MpdPreferencesFrame(wx.Frame):
     """Mpd main window"""
     # pylint: disable=too-many-instance-attributes
@@ -1583,6 +1670,7 @@ class MpdPreferencesFrame(wx.Frame):
     def on_cancel(self, _event: wx.PyCommandEvent) -> None:
         """On cancel preferences window"""
         self.logger.debug("on_cancel()")
+        self.Close()
 
 def main():
     """The main function for MPDCMD"""
