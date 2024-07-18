@@ -615,6 +615,15 @@ class MpdController():
         self.logger.debug("load()")
         cli.load(playlist)
 
+    def remove(self, playlist) -> None:
+        """Remove playlist"""
+        threading.Thread(
+            target=self.connection.execute,
+            args=(self.__remove, playlist)).start()
+    def __remove(self, cli: musicpd.MPDClient, playlist) -> None:
+        self.logger.debug("remove()")
+        cli.rm(playlist)
+
     def set_volume(self, volume) -> None:
         """Set volume"""
         threading.Thread(
@@ -1228,6 +1237,8 @@ class MpdCmdFrame(wx.Frame):
         menu = wx.Menu()
         load_item = menu.Append(-1, "Load")
         self.Bind(wx.EVT_MENU, self.on_menu_playlist_load, load_item)
+        remove_item = menu.Append(-1, "Remove")
+        self.Bind(wx.EVT_MENU, self.on_menu_playlist_remove, remove_item)
         self.PopupMenu(menu, event.GetPoint())
     def songs_context_menu(self, event):
         """Songs context menu"""
@@ -1648,10 +1659,15 @@ class MpdCmdFrame(wx.Frame):
         self.mpd.playlist_add(playlist, file)
         
     def on_menu_playlist_load(self, _event: wx.CommandEvent) -> None:
-        """Menu Playlist Play"""
+        """Menu Playlist Load"""
         playlist = self.playlists_ctrl.GetItem(self.playlists_ctrl.GetFirstSelected(), col=0).GetText()
-        self.logger.info("Playlist play %s", playlist)
+        self.logger.info("Playlist load %s", playlist)
         self.mpd.load(playlist)
+    def on_menu_playlist_remove(self, _event: wx.CommandEvent) -> None:
+        """Menu Playlist Remove"""
+        playlist = self.playlists_ctrl.GetItem(self.playlists_ctrl.GetFirstSelected(), col=0).GetText()
+        self.logger.info("Playlist remove %s", playlist)
+        self.mpd.remove(playlist)
 
 class MpdNewPlaylistFrame(wx.Frame):
     """New playlist window"""
