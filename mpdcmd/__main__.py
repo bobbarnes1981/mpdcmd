@@ -1220,7 +1220,7 @@ class MpdCmdFrame(wx.Frame):
         self.queue_ctrl.DeleteAllItems()
         for idx,song in enumerate(queue):
             prefix = ''
-            if song.get('pos', '') == str(idx):
+            if self.current_song.get('pos', '') == str(idx):
                 prefix = '>'
             track = song.get('track', None)
             artist = song.get('artist', None)
@@ -1358,6 +1358,7 @@ class MpdCmdFrame(wx.Frame):
             title = self.current_song.get('title', None)
             album = self.current_song.get('album', None)
             name = self.current_song.get('name', None)
+            notification = None
             if track and artist and title and album:
                 # music file
                 # pylint: disable=consider-using-f-string
@@ -1373,11 +1374,12 @@ class MpdCmdFrame(wx.Frame):
                     "MPDCMD", "%s\r\n%s" % (
                         self.current_song.get('name', '?'),
                         self.current_song.get('title', '?')))
-            bitmap = self.mpd.get_albumart(
-                self.current_song.get('artist', ''),
-                self.current_song.get('album', ''))
-            notification.SetIcon(wx.Icon(bitmap))
-            notification.Show(5)
+            if notification:
+                bitmap = self.mpd.get_albumart(
+                    self.current_song.get('artist', ''),
+                    self.current_song.get('album', ''))
+                notification.SetIcon(wx.Icon(bitmap))
+                notification.Show(5)
     def set_current_albumart(self) -> None:
         """Set the album art image for the currently playing song"""
         bitmap = self.mpd.get_albumart(
