@@ -195,6 +195,15 @@ class MpdIdleOptionsEvent(wx.PyCommandEvent):
     def __init__(self):
         """Initialise the event"""
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_IDLE_OPTIONS, -1)
+        
+mcEVT_MPD_IDLE_STOREDPLAYLIST = wx.NewEventType()
+EVT_MPD_IDLE_STOREDPLAYLIST = wx.PyEventBinder(mcEVT_MPD_IDLE_STOREDPLAYLIST, 1)
+class MpdIdleStoredPlaylistEvent(wx.PyCommandEvent):
+    """MPD idle stored_playlist event"""
+    # pylint: disable=too-few-public-methods
+    def __init__(self):
+        """Initialise the event"""
+        wx.PyCommandEvent.__init__(self, mcEVT_MPD_IDLE_STOREDPLAYLIST, -1)
 
 def albums_from_listallinfo(cli: musicpd.MPDClient) -> list:
     songs_result = cli.listallinfo()
@@ -543,6 +552,15 @@ class MpdController():
         cli.play()
         wx.PostEvent(self.window, MpdQueueEvent(queue)) # do we need this?
 
+    def save_playlist(self, name: str) -> None:
+        """Save the queue as a playlist"""
+        threading.Thread(
+            target=self.connection.execute,
+            args=(self.__save_playlist, name)).start()
+    def __save_playlist(self, cli: musicpd.MPDClient, name: str) -> None:
+        self.logger.debug("save_playlist()")
+        cli.save(name)
+
     def playlist_add(self, name: str, file: str) -> None:
         """Add the file to the playlist"""
         threading.Thread(
@@ -748,6 +766,7 @@ class MpdIdleThread(threading.Thread):
             'update': self.__action_update,
             'database': self.__action_database,
             'options': self.__action_options,
+            'stored_playlist': self.__action_stored_playlist,
         }
         self.running = False
         self.socket_timeout = 10
@@ -813,6 +832,12 @@ class MpdIdleThread(threading.Thread):
         # option was modified
         self.logger.debug('Options action')
         wx.PostEvent(self.parent, MpdIdleOptionsEvent())
+    
+    def __action_stored_playlist(self):
+        """Stored playlist idle action"""
+        # playlist was stored
+        self.logger.debug("Stored playlist action")
+        wx.PostEvent(self.Parent, MpdIdleStoredPlaylist())
 
 class MpdCmdFrame(wx.Frame):
     """The main frame for the MpdCmd application"""
@@ -856,6 +881,8 @@ class MpdCmdFrame(wx.Frame):
         self.Bind(EVT_MPD_IDLE_PLAYLIST, self.on_idle_playlist)
         self.Bind(EVT_MPD_IDLE_UPDATE, self.on_idle_update)
         self.Bind(EVT_MPD_IDLE_DATABASE, self.on_idle_database)
+        self.Bind(EVT_MPD_IDLE_OPTIONS, self.on_idle_options)
+        self.Bind(EVT_MPD_IDLE_STOREDPLAYLIST, self.on_idle_storedplaylist)
 
         # init properties
         self.status = {}
@@ -1125,6 +1152,7 @@ class MpdCmdFrame(wx.Frame):
 
         queue_menu = wx.Menu()
         append_item = queue_menu.Append(-1, "&Append", "Append item to queue")
+        save_item = queue_menu.Append(-1, "&Save as Playlist")
         clear_item = queue_menu.Append(-1, "&Clear", "Clear queue items")
 
         help_menu = wx.Menu()
@@ -1142,6 +1170,7 @@ class MpdCmdFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_menu_refresh, refresh_item)
         self.Bind(wx.EVT_MENU, self.on_menu_update, update_item)
         self.Bind(wx.EVT_MENU, self.on_menu_append, append_item)
+        self.Bind(wx.EVT_MENU, self.on_menu_save, save_item)
         self.Bind(wx.EVT_MENU, self.on_menu_clear, clear_item)
         self.Bind(wx.EVT_MENU, self.on_menu_about, about_item)
 
@@ -1336,6 +1365,10 @@ class MpdCmdFrame(wx.Frame):
         """Idle options event"""
         self.logger.debug("Idle options")
         self.mpd.refresh_status()
+    def on_idle_storedplaylist(self, _event: MpdIdleStoredPlaylistEvent) -> None:
+        """Idle stored_playlist event"""
+        self.logger.debug("Idle stored_playlist")
+        self.mpd.refresh_playlists()
 
     def album_item_activated(self, _event: wx.ListEvent) -> None:
         """Album item selected"""
@@ -1527,7 +1560,7 @@ class MpdCmdFrame(wx.Frame):
             title='Preferences',
             size=(320,340))
         preferences.Show()
-    def on_menu_append(self, _Event: wx.CommandEvent) -> None:
+    def on_menu_append(self, _event: wx.CommandEvent) -> None:
         """Append menu selected"""
         self.logger.debug("on_menu_append()")
         add = MpdAppendFrame(
@@ -1535,7 +1568,15 @@ class MpdCmdFrame(wx.Frame):
             title='Append',
             size=(320,140))
         add.Show()
-    def on_menu_clear(self, _Event: wx.CommandEvent) -> None:
+    def on_menu_save(self, _event: wx.CommandEvent) -> None:
+        """Save queue as playlist"""
+        self.logger.debug("on_menu_save()")
+        save = MpdSavePlaylistFrame(
+            self,
+            title='Save',
+            size=(320,140))
+        save.Show()
+    def on_menu_clear(self, _event: wx.CommandEvent) -> None:
         """Clear menu selected"""
         self.logger.debug("on_menu_clear()")
         self.mpd.clear_queue()
@@ -1740,6 +1781,44 @@ class MpdAppendFrame(wx.Frame):
         """On append"""
         self.logger.debug("on_append()")
         self.Parent.mpd.play_song(self.append_text.Value)
+        self.Close()
+
+    def on_cancel(self, _event: wx.PyCommandEvent) -> None:
+        """On cancel"""
+        self.logger.debug("on_cancel()")
+        self.Close()
+
+class MpdSavePlaylistFrame(wx.Frame):
+    """Save playlist window"""
+    def __init__(self, *args, **kw):
+        wx.Frame.__init__(self, *args, **kw)
+
+        self.logger = logging.getLogger(type(self).__name__)
+        self.logger.info("Starting %s", type(self).__name__)
+        
+        self.panel = wx.Panel(self)
+
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.panel.SetSizer(self.sizer)
+
+        name_label = wx.StaticText(self.panel, label='Name')
+        self.sizer.Add(name_label, 0, wx.EXPAND|wx.ALL, 1)
+
+        self.name_text = wx.TextCtrl(self.panel, value='')
+        self.sizer.Add(self.name_text, 0, wx.EXPAND|wx.ALL, 1)
+
+        cancel_button = wx.Button(self.panel, label="Cancel")
+        self.Bind(wx.EVT_BUTTON, self.on_cancel, cancel_button)
+        self.sizer.Add(cancel_button, 0, wx.EXPAND|wx.ALL, 1)
+
+        save_button = wx.Button(self.panel, label="Save")
+        self.Bind(wx.EVT_BUTTON, self.on_save, save_button)
+        self.sizer.Add(save_button, 0, wx.EXPAND|wx.ALL, 1)
+
+    def on_save(self, _event: wx.PyCommandEvent) -> None:
+        """On save"""
+        self.logger.debug("on_save()")
+        self.Parent.mpd.save_playlist(self.name_text.Value)
         self.Close()
 
     def on_cancel(self, _event: wx.PyCommandEvent) -> None:
