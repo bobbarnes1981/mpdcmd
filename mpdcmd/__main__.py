@@ -543,6 +543,15 @@ class MpdController():
         cli.play()
         wx.PostEvent(self.window, MpdQueueEvent(queue)) # do we need this?
 
+    def playlist_add(self, name: str, file: str) -> None:
+        """Add the file to the playlist"""
+        threading.Thread(
+            target=self.connection.execute,
+            args=(self.__playlist_add, name, file)).start()
+    def __playlist_add(self, cli: musicpd.MPDClient, name: str, file: str) -> None:
+        self.logger.debug("playlist_add()")
+        cli.playlistadd(name, file)
+
     def append_song(self, file: str) -> None:
         """Append the song"""
         threading.Thread(
@@ -589,13 +598,22 @@ class MpdController():
         cli.next()
 
     def prev(self) -> None:
-        """Previous song in qeueue"""
+        """Previous song in queue"""
         threading.Thread(
             target=self.connection.execute,
             args=(self.__prev,)).start()
     def __prev(self, cli: musicpd.MPDClient) -> None:
         self.logger.debug("prev()")
         cli.previous()
+
+    def load(self, playlist) -> None:
+        """Load playlist"""
+        threading.Thread(
+            target=self.connection.execute,
+            args=(self.__load, playlist)).start()
+    def __load(self, cli: musicpd.MPDClient, playlist) -> None:
+        self.logger.debug("load()")
+        cli.load(playlist)
 
     def set_volume(self, volume) -> None:
         """Set volume"""
@@ -833,6 +851,7 @@ class MpdCmdFrame(wx.Frame):
         # init properties
         self.status = {}
         self.current_song = {}
+        self.playlists = []
         self.connection_status = "Not connected"
         self.volume_changing = False
 
@@ -1001,9 +1020,10 @@ class MpdCmdFrame(wx.Frame):
         """Make the playlists control"""
         playlists_ctrl = wx.ListCtrl(parent)
         playlists_ctrl.SetWindowStyleFlag(wx.LC_REPORT)
-        playlists_ctrl.InsertColumn(0, "1", width=100)
+        playlists_ctrl.InsertColumn(0, "Playlist", width=100)
+        playlists_ctrl.InsertColumn(1, "Last modified", width=100)
         try:
-            playlists_ctrl.SetColumnsOrder([0])
+            playlists_ctrl.SetColumnsOrder([0,1])
         except NotImplementedError:
             pass
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.playlists_item_activated, playlists_ctrl)
@@ -1162,11 +1182,13 @@ class MpdCmdFrame(wx.Frame):
             self.mpd.fetch_all_albumart(songs)
     def on_playlists_changed(self, event: MpdPlaylistsEvent) -> None:
         """MPD playlists changed"""
-        playlists = event.get_value()
-        self.logger.info("Playlists changed %s", playlists)
+        self.playlists = event.get_value()
+        self.logger.info("Playlists changed %s", self.playlists)
         self.playlists_ctrl.DeleteAllItems()
-        for playlist in playlists:
-            self.playlists_ctrl.Append(playlist)
+        for playlist in self.playlists:
+            self.playlists_ctrl.Append([
+                playlist['playlist'],
+                playlist['last-modified']])
     def on_albumart_changed(self, event: MpdAlbumArtEvent) -> None:
         """MPD albumart changed"""
         songid = event.get_value()
@@ -1200,9 +1222,13 @@ class MpdCmdFrame(wx.Frame):
         play_artist_item = menu.Append(-1, "Play Artist")
         self.Bind(wx.EVT_MENU, self.on_menu_albums_play_artist, play_artist_item)
         self.PopupMenu(menu, event.GetPoint())
-    def playlists_context_menu(self, _event):
+    def playlists_context_menu(self, event):
         """Playlists context menu"""
         self.logger.debug("playlists_context_menu()")
+        menu = wx.Menu()
+        load_item = menu.Append(-1, "Load")
+        self.Bind(wx.EVT_MENU, self.on_menu_playlist_load, load_item)
+        self.PopupMenu(menu, event.GetPoint())
     def songs_context_menu(self, event):
         """Songs context menu"""
         self.logger.debug("songs_context_menu()")
@@ -1221,6 +1247,17 @@ class MpdCmdFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_menu_songs_append_artist, append_artist_item)
         play_artist_item = menu.Append(-1, "Play Artist")
         self.Bind(wx.EVT_MENU, self.on_menu_songs_play_artist, play_artist_item)
+
+        menu.AppendSeparator()
+        append_menu = wx.Menu()
+        append_new_item = append_menu.Append(-1, "New")
+        self.Bind(wx.EVT_MENU, self.on_menu_songs_append_newplaylist, append_new_item)
+        append_menu.AppendSeparator()
+        for playlist in self.playlists:
+            pl_item = append_menu.Append(-1, playlist['playlist'])
+            self.Bind(wx.EVT_MENU, lambda event: self.on_menu_songs_append_playlist(playlist['playlist'], event), pl_item)
+        menu.AppendSubMenu(append_menu, "Append To Playlist")
+        
         self.PopupMenu(menu, event.GetPoint())
 
     def on_current_song_changed(self, event: MpdCurrentSongEvent) -> None:
@@ -1307,6 +1344,7 @@ class MpdCmdFrame(wx.Frame):
         playlist = self.playlists_ctrl.GetItem(
             self.playlists_ctrl.GetFirstSelected(), col=0).GetText()
         self.logger.debug("Playlist selected %s", playlist)
+        self.mpd.load(playlist)
     def song_item_activated(self, _event: wx.ListEvent):
         """Song item selected"""
         song = self.songs_ctrl.GetItem(self.songs_ctrl.GetFirstSelected(), col=0).GetText()
@@ -1590,6 +1628,70 @@ class MpdCmdFrame(wx.Frame):
         artist = self.songs_ctrl.GetItem(self.songs_ctrl.GetFirstSelected(), col=2).GetText()
         self.logger.debug("Song item play artist %s", artist)
         self.mpd.play_artist_tag(artist)
+    def on_menu_songs_append_newplaylist(self, _event) -> None:
+        """Songs append to new playlist"""
+        song = self.songs_ctrl.GetItem(self.songs_ctrl.GetFirstSelected(), col=6).GetText()
+        self.logger.debug("Song item append to new playlist %s", song)
+        new = MpdNewPlaylistFrame(
+            song,
+            self,
+            title='New Playlist',
+            size=(320,140))
+        new.Show()
+    def on_menu_songs_append_playlist(self, playlist, _event) -> None:
+        """Songs append to playlist"""
+        song = self.songs_ctrl.GetItem(self.songs_ctrl.GetFirstSelected(), col=6).GetText()
+        self.logger.debug("Song item append to playlist %s", song)
+        self.append_to_playlist(playlist, song)
+
+    def append_to_playlist(self, playlist, file) -> None:
+        self.mpd.playlist_add(playlist, file)
+        
+    def on_menu_playlist_load(self, _event: wx.CommandEvent) -> None:
+        """Menu Playlist Play"""
+        playlist = self.playlists_ctrl.GetItem(self.playlists_ctrl.GetFirstSelected(), col=0).GetText()
+        self.logger.info("Playlist play %s", playlist)
+        self.mpd.load(playlist)
+
+class MpdNewPlaylistFrame(wx.Frame):
+    """New playlist window"""
+    def __init__(self, file :str, *args, **kw):
+        wx.Frame.__init__(self, *args, **kw)
+
+        self.logger = logging.getLogger(type(self).__name__)
+        self.logger.info("Starting %s", type(self).__name__)
+
+        self.file = file
+
+        self.panel = wx.Panel(self)
+
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.panel.SetSizer(self.sizer)
+
+        name_label = wx.StaticText(self.panel, label='Name')
+        self.sizer.Add(name_label, 0, wx.EXPAND|wx.ALL, 1)
+
+        self.name_text = wx.TextCtrl(self.panel, value='')
+        self.sizer.Add(self.name_text, 0, wx.EXPAND|wx.ALL, 1)
+
+        cancel_button = wx.Button(self.panel, label="Cancel")
+        self.Bind(wx.EVT_BUTTON, self.on_cancel, cancel_button)
+        self.sizer.Add(cancel_button, 0, wx.EXPAND|wx.ALL, 1)
+
+        ok_button = wx.Button(self.panel, label="OK")
+        self.Bind(wx.EVT_BUTTON, self.on_ok, ok_button)
+        self.sizer.Add(ok_button, 0, wx.EXPAND|wx.ALL, 1)
+
+    def on_ok(self, _event: wx.PyCommandEvent) -> None:
+        """On ok"""
+        self.logger.debug("on_ok()")
+        self.Parent.append_to_playlist(self.name_text.Value, self.file)
+        self.Close()
+
+    def on_cancel(self, _event: wx.PyCommandEvent) -> None:
+        """On cancel"""
+        self.logger.debug("on_cancel()")
+        self.Close()
 
 class MpdAppendFrame(wx.Frame):
     """Append window"""
