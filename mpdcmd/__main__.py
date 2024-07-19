@@ -837,7 +837,7 @@ class MpdIdleThread(threading.Thread):
         """Stored playlist idle action"""
         # playlist was stored
         self.logger.debug("Stored playlist action")
-        wx.PostEvent(self.Parent, MpdIdleStoredPlaylist())
+        wx.PostEvent(self.parent, MpdIdleStoredPlaylistEvent())
 
 class MpdCmdFrame(wx.Frame):
     """The main frame for the MpdCmd application"""
