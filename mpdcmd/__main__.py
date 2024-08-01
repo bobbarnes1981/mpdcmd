@@ -715,11 +715,13 @@ class MpdController():
 
     def __get_file_extension(self, data: str) -> None:
         """Get file extension using magic number"""
-        if data.startswith(bytes.fromhex('ffd8ffe0')): # JFIF
+        if data.startswith(bytes.fromhex('ffd8ffe0')): # jpg, jpeg
             return ('jpg', wx.BITMAP_TYPE_JPEG)
-        if data.startswith(bytes.fromhex('ffd8ffe1')): # EXIF
+        if data.startswith(bytes.fromhex('ffd8ffdb')): # jpg, jpeg
             return ('jpg', wx.BITMAP_TYPE_JPEG)
-        if data.startswith(bytes.fromhex('89504e47')):
+        if data.startswith(bytes.fromhex('ffd8ffe1')): # jpg, jpeg
+            return ('jpg', wx.BITMAP_TYPE_JPEG)
+        if data.startswith(bytes.fromhex('89504e47')): # png
             return ('png', wx.BITMAP_TYPE_PNG)
         raise Exception(f'Unhandled file type {data[:5]}')
 
