@@ -422,7 +422,7 @@ class MpdController():
             args=(self.__refresh_albumart, song, trigger_event)).start()
     def __refresh_albumart(self, cli: musicpd.MPDClient, song: dict, trigger: bool) -> None:
         self.logger.debug("refresh_albumart()")
-        artist = song.get('artist', '')
+        artist = song.get('albumartist', song.get('artist', ''))
         album = song.get('album', '')
         file = song.get('file', '')
         if not self.__albumart_exists(artist, album):
@@ -716,8 +716,10 @@ class MpdController():
         path = self.__art_path('icons', 'icon', 'png')
         return wx.Image(path, type=wx.BITMAP_TYPE_PNG).Scale(80, 80).ConvertToBitmap()
 
-    def get_albumart(self, artist, album) -> wx.Bitmap:
+    def get_albumart(self, song) -> wx.Bitmap:
         """Get the albumart"""
+        artist = song.get('albumartist', song.get('artist', ''))
+        album = song.get('album', '')
         path = self.__art_path(self.art_folder, self.__art_file(artist, album), 'png')
         if os.path.isfile(path):
             return wx.Image(path, type=wx.BITMAP_TYPE_PNG).Scale(80, 80).ConvertToBitmap()
@@ -1461,16 +1463,12 @@ class MpdCmdFrame(wx.Frame):
                         self.current_song.get('name', '?'),
                         self.current_song.get('title', '?')))
             if notification:
-                bitmap = self.mpd.get_albumart(
-                    self.current_song.get('artist', ''),
-                    self.current_song.get('album', ''))
+                bitmap = self.mpd.get_albumart(self.current_song)
                 notification.SetIcon(wx.Icon(bitmap))
                 notification.Show(5)
     def set_current_albumart(self) -> None:
         """Set the album art image for the currently playing song"""
-        bitmap = self.mpd.get_albumart(
-            self.current_song.get('artist', ''),
-            self.current_song.get('album', ''))
+        bitmap = self.mpd.get_albumart(self.current_song)
         self.art.Bitmap = bitmap
 
     def update_statusbar_text(self) -> None:
