@@ -214,34 +214,12 @@ def albums_from_listallinfo(cli: musicpd.MPDClient) -> list:
         if song['album'] not in album_dict:
             album_dict[song['album']] = {
                 'album': song['album'],
-                'artist': None,
+                'artist': song.get('albumartist', song.get('artist', '')),
                 'tracks': 0,
                 'duration': 0}
         album_dict[song['album']]['tracks']+=1
         album_dict[song['album']]['duration']+=float(song['duration'])
-        if album_dict[song['album']]['artist'] != None and album_dict[song['album']]['artist'] != song['artist']:
-            album_dict[song['album']]['artist'] = 'VA'
-        else:
-            album_dict[song['album']]['artist'] = song['artist']
     return list(album_dict.values())
-
-def albums_from_listalbums(cli: musicpd.MPDClient) -> list:
-    albums_result = cli.list('Album')
-    albums = []
-    for album in albums_result:
-        tracks = cli.find(f'(Album == "{album}")')
-        is_various = False
-        duration = 0
-        for t in range(1, len(tracks)):
-            duration += float(tracks[t]['duration'])
-            if tracks[t-1]['artist'] != tracks[t]['artist']:
-                is_various = True
-        albums.append({
-            'album': album,
-            'artist': 'VA' if is_various else tracks[0]['artist'],
-            'tracks': len(tracks),
-            'duration': duration})
-    return albums
 
 class MpdConnection():
     """Handles executing requests to MPD"""
@@ -374,11 +352,7 @@ class MpdController():
             args=(self.__refresh_albums,)).start()
     def __refresh_albums(self, cli: musicpd.MPDClient) -> None:
         self.logger.debug("refresh_albums()")
-        albums = []
-        if True:
-            albums = albums_from_listallinfo(cli)
-        else:
-            albums = albums_from_listalbums(cli)
+        albums = albums_from_listallinfo(cli)
         if self.albums != albums:
             self.albums = albums
             wx.PostEvent(self.window, MpdAlbumsEvent(self.albums))
