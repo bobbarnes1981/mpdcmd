@@ -255,10 +255,14 @@ class MpdConnection():
                 connection_status = "Connected"
                 self.logger.debug(connection_status)
                 func(client, *args)
-        except musicpd.MPDError as e:
+        except musicpd.ConnectionError as e:
             connection_status = "Connection error"
             self.logger.warning("Connection error %s %s", func.__name__, args)
             self.logger.warning(e)
+        except musicpd.CommandError as e:
+            self.logger.warning("Command error %s %s", func.__name__, args)
+            for arg in e.args:
+                self.logger.warning(arg)
         if self.connection_status != connection_status:
             self.connection_status = connection_status
             wx.PostEvent(self.window, MpdConnectionEvent(connection_status))
