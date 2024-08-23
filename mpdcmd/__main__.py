@@ -76,6 +76,19 @@ class MpdSongsEvent(wx.PyCommandEvent):
     def get_value(self) -> list:
         """Get the value"""
         return self._value
+    
+mcEVT_MPD_SEARCH = wx.NewEventType()
+EVT_MPD_SEARCH = wx.PyEventBinder(mcEVT_MPD_SEARCH, 1)
+class MpdSearchEvent(wx.PyCommandEvent):
+    """MPD search event"""
+    # pylint: disable=too-few-public-methods
+    def __init__(self, value: list):
+        """Initialise the event"""
+        wx.PyCommandEvent.__init__(self, mcEVT_MPD_SEARCH, -1)
+        self._value = value
+    def get_value(self) -> list:
+        """Get the value"""
+        return self._value
 
 mcEVT_MPD_PLAYLISTS = wx.NewEventType()
 EVT_MPD_PLAYLISTS = wx.PyEventBinder(mcEVT_MPD_PLAYLISTS, 1)
@@ -467,6 +480,16 @@ class MpdController():
         self.logger.debug("clear_queue()")
         cli.clear()
 
+    def search(self, query: str) -> None:
+        """Search the database"""
+        threading.Thread(
+            target=self.connection.execute,
+            args=(self.__search,query)).start()
+    def __search(self, cli: musicpd.MPDClient, query: str) -> None:
+        self.logger.debug("search()")
+        songs = cli.search(f"(ANY contains \"{query}\")")
+        wx.PostEvent(self.window, MpdSearchEvent(songs))
+
     def play_album_tag(self, album_name: str) -> None:
         """Play the album tag"""
         threading.Thread(
@@ -853,6 +876,7 @@ class MpdCmdFrame(wx.Frame):
         self.Bind(EVT_MPD_SONGS, self.on_songs_changed)
         self.Bind(EVT_MPD_PLAYLISTS, self.on_playlists_changed)
         self.Bind(EVT_MPD_ALBUMART, self.on_albumart_changed)
+        self.Bind(EVT_MPD_SEARCH, self.on_search_results)
 
         self.Bind(EVT_MPD_CTRL_CURRENTSONG, self.on_current_song_changed)
         self.Bind(EVT_MPD_CTRL_ALBUMS, self.on_albums_changed)
@@ -929,6 +953,8 @@ class MpdCmdFrame(wx.Frame):
 
         self.logger.info("Initialising UI")
 
+        self.notification = None
+
         self.make_menu_bar()
         self.CreateStatusBar()
 
@@ -998,6 +1024,9 @@ class MpdCmdFrame(wx.Frame):
         self.songs_ctrl = self.__make_songs_ctrl(notebook)
         notebook.AddPage(self.songs_ctrl, "Songs")
 
+        search_page = self.__make_search_ctrl(notebook)
+        notebook.AddPage(search_page, "Search")
+
         return notebook
     def __make_queue_ctrl(self, parent: wx.Window) -> wx.ListCtrl:
         """Make the queue control"""
@@ -1065,6 +1094,45 @@ class MpdCmdFrame(wx.Frame):
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.song_item_activated, songs_ctrl)
         self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.songs_context_menu, songs_ctrl)
         return songs_ctrl
+    def __make_search_ctrl(self, parent: wx.Window) -> wx.Panel:
+        """Make the search control"""
+        result_panel = wx.Panel(parent)
+        #result_panel.SetBackgroundColour((0x00, 0xff, 0xff))
+        result_sizer = wx.BoxSizer(wx.VERTICAL)
+
+        search_panel = wx.Panel(result_panel)
+        #search_panel.SetBackgroundColour((0xff, 0xff, 0x00))
+        search_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        search_label = wx.StaticText(search_panel, label='Search')
+        search_sizer.Add(search_label, 0, wx.EXPAND|wx.ALL, 1)
+        self.search_box = wx.TextCtrl(search_panel, value='')
+        search_sizer.Add(self.search_box, 0, wx.EXPAND|wx.ALL, 1)
+        search_button = wx.Button(search_panel, label="Search")
+        self.Bind(wx.EVT_BUTTON, self.on_search, search_button)
+        search_sizer.Add(search_button, 0, wx.EXPAND|wx.ALL, 1)
+        search_panel.SetSizer(search_sizer)
+
+        self.search_ctrl = wx.ListCtrl(result_panel)
+        self.search_ctrl.SetWindowStyleFlag(wx.LC_REPORT)
+        self.search_ctrl.InsertColumn(0, "", width=20)
+        self.search_ctrl.InsertColumn(1, "Album", width=150)
+        self.search_ctrl.InsertColumn(2, "Artist", width=100)
+        self.search_ctrl.InsertColumn(3, "Track", width=50)
+        self.search_ctrl.InsertColumn(4, "Title", width=200)
+        self.search_ctrl.InsertColumn(5, "Duration", width=70)
+        self.search_ctrl.InsertColumn(6, "File", width=70)
+        try:
+            self.search_ctrl.SetColumnsOrder([0,1,2,3,4,5,6])
+        except NotImplementedError:
+            pass
+        self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.search_item_activated, self.search_ctrl)
+        self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.search_context_menu, self.search_ctrl)
+
+        result_sizer.Add(search_panel, 0, wx.EXPAND|wx.ALL, 1)
+        result_sizer.Add(self.search_ctrl, 1, wx.EXPAND|wx.ALL, 1)
+        result_panel.SetSizer(result_sizer)
+
+        return result_panel
 
     def make_transport(self, parent) -> wx.Panel:
         """Make the transport"""
@@ -1214,6 +1282,21 @@ class MpdCmdFrame(wx.Frame):
         songid = event.get_value()
         self.logger.info("Albumart changed %s", songid)
         self.set_current_albumart()
+    def on_search_results(self, event: MpdSearchEvent) -> None:
+        """MPD search results"""
+        results = event.get_value()
+        self.logger.info("Search results %s", len(results))
+        self.search_ctrl.DeleteAllItems()
+        for song in results:
+            prefix = ''
+            self.search_ctrl.Append([
+                prefix,
+                song.get('album', ''),
+                song.get('artist', ''),
+                song.get('track', ''),
+                song.get('title', ''),
+                self.seconds_to_time(float(song.get('duration', ''))),
+                song.get('file', '')])
 
     def queue_context_menu(self, event):
         """Queue context menu"""
@@ -1278,6 +1361,36 @@ class MpdCmdFrame(wx.Frame):
         for playlist in self.playlists:
             pl_item = append_menu.Append(-1, playlist['playlist'])
             self.Bind(wx.EVT_MENU, lambda event: self.on_menu_songs_append_playlist(playlist['playlist'], event), pl_item)
+        menu.AppendSubMenu(append_menu, "Append To Playlist")
+        
+        self.PopupMenu(menu, event.GetPoint())
+    def search_context_menu(self, event):
+        """Search context menu"""
+        self.logger.debug("search_context_menu()")
+        menu = wx.Menu()
+        append_item = menu.Append(-1, "Append Song")
+        self.Bind(wx.EVT_MENU, self.on_menu_search_append_song, append_item)
+        play_item = menu.Append(-1, "Play Song")
+        self.Bind(wx.EVT_MENU, self.on_menu_search_play_song, play_item)
+        menu.AppendSeparator()
+        append_album_item = menu.Append(-1, "Append Album")
+        self.Bind(wx.EVT_MENU, self.on_menu_search_append_album, append_album_item)
+        play_album_item = menu.Append(-1, "Play Album")
+        self.Bind(wx.EVT_MENU, self.on_menu_search_play_album, play_album_item)
+        menu.AppendSeparator()
+        append_artist_item = menu.Append(-1, "Append Artist")
+        self.Bind(wx.EVT_MENU, self.on_menu_search_append_artist, append_artist_item)
+        play_artist_item = menu.Append(-1, "Play Artist")
+        self.Bind(wx.EVT_MENU, self.on_menu_search_play_artist, play_artist_item)
+
+        menu.AppendSeparator()
+        append_menu = wx.Menu()
+        append_new_item = append_menu.Append(-1, "New")
+        self.Bind(wx.EVT_MENU, self.on_menu_search_append_newplaylist, append_new_item)
+        append_menu.AppendSeparator()
+        for playlist in self.playlists:
+            pl_item = append_menu.Append(-1, playlist['playlist'])
+            self.Bind(wx.EVT_MENU, lambda event: self.on_menu_search_append_playlist(playlist['playlist'], event), pl_item)
         menu.AppendSubMenu(append_menu, "Append To Playlist")
         
         self.PopupMenu(menu, event.GetPoint())
@@ -1375,6 +1488,10 @@ class MpdCmdFrame(wx.Frame):
         """Song item selected"""
         song = self.songs_ctrl.GetItem(self.songs_ctrl.GetFirstSelected(), col=0).GetText()
         self.logger.debug("Song selected %s", song)
+    def search_item_activated(self, _event: wx.ListEvent):
+        """Search item selected"""
+        song = self.search_ctrl.GetItem(self.songs_ctrl.GetFirstSelected(), col=0).GetText()
+        self.logger.debug("Search selected %s", song)
 
     def update_title(self, stats: dict) -> None:
         """Update the title text"""
@@ -1450,11 +1567,13 @@ class MpdCmdFrame(wx.Frame):
             title = self.current_song.get('title', None)
             album = self.current_song.get('album', None)
             name = self.current_song.get('name', None)
-            notification = None
+            if self.notification != None:
+                self.notification.Close()
+                self.notification = None
             if track and artist and title and album:
                 # music file
                 # pylint: disable=consider-using-f-string
-                notification = wx.adv.NotificationMessage(
+                self.notification = wx.adv.NotificationMessage(
                     "MPDCMD", "%s. %s - %s\r\n%s" % (
                         self.current_song.get('track', '?'),
                         self.current_song.get('artist', '?'),
@@ -1462,14 +1581,14 @@ class MpdCmdFrame(wx.Frame):
                         self.current_song.get('album', '?')))
             if name:
                 # music stream (title can be empty)
-                notification = wx.adv.NotificationMessage(
+                self.notification = wx.adv.NotificationMessage(
                     "MPDCMD", "%s\r\n%s" % (
                         self.current_song.get('name', '?'),
                         self.current_song.get('title', '?')))
-            if notification:
+            if self.notification:
                 bitmap = self.mpd.get_albumart(self.current_song)
-                notification.SetIcon(wx.Icon(bitmap))
-                notification.Show(5)
+                self.notification.SetIcon(wx.Icon(bitmap))
+                self.notification.Show(5)
     def set_current_albumart(self) -> None:
         """Set the album art image for the currently playing song"""
         bitmap = self.mpd.get_albumart(self.current_song)
@@ -1528,6 +1647,10 @@ class MpdCmdFrame(wx.Frame):
         """Consume checkbox changed"""
         consume = self.consume_check.GetValue()
         self.mpd.set_consume(consume)
+    def on_search(self, event) -> None:
+        """Do a search"""
+        query = self.search_box.Value
+        self.mpd.search(query)
 
     def on_menu_pref(self, _event: wx.CommandEvent) -> None:
         """Preferences menu selected"""
@@ -1636,7 +1759,7 @@ class MpdCmdFrame(wx.Frame):
     def on_menu_songs_play_song(self, _event) -> None:
         """Songs play song"""
         song = self.songs_ctrl.GetItem(self.songs_ctrl.GetFirstSelected(), col=6).GetText()
-        self.logger.debug("Song item play song %s", song)
+        self.logger.debug("Songs item play song %s", song)
         self.mpd.play_song(song)
     def on_menu_songs_append_album(self, _event) -> None:
         """Songs append album"""
@@ -1646,7 +1769,7 @@ class MpdCmdFrame(wx.Frame):
     def on_menu_songs_play_album(self, _event) -> None:
         """Songs play album"""
         album = self.songs_ctrl.GetItem(self.songs_ctrl.GetFirstSelected(), col=1).GetText()
-        self.logger.debug("Song item play album %s", album)
+        self.logger.debug("Songs item play album %s", album)
         self.mpd.play_album_tag(album)
     def on_menu_songs_append_artist(self, _event) -> None:
         """Songs append artist"""
@@ -1656,12 +1779,12 @@ class MpdCmdFrame(wx.Frame):
     def on_menu_songs_play_artist(self, _event) -> None:
         """Songs play artist"""
         artist = self.songs_ctrl.GetItem(self.songs_ctrl.GetFirstSelected(), col=2).GetText()
-        self.logger.debug("Song item play artist %s", artist)
+        self.logger.debug("Songs item play artist %s", artist)
         self.mpd.play_artist_tag(artist)
     def on_menu_songs_append_newplaylist(self, _event) -> None:
         """Songs append to new playlist"""
         song = self.songs_ctrl.GetItem(self.songs_ctrl.GetFirstSelected(), col=6).GetText()
-        self.logger.debug("Song item append to new playlist %s", song)
+        self.logger.debug("Songs item append to new playlist %s", song)
         new = MpdNewPlaylistFrame(
             song,
             self,
@@ -1672,6 +1795,52 @@ class MpdCmdFrame(wx.Frame):
         """Songs append to playlist"""
         song = self.songs_ctrl.GetItem(self.songs_ctrl.GetFirstSelected(), col=6).GetText()
         self.logger.debug("Song item append to playlist %s", song)
+        self.append_to_playlist(playlist, song)
+
+    def on_menu_search_append_song(self, _event) -> None:
+        """Search append song"""
+        song = self.search_ctrl.GetItem(self.search_ctrl.GetFirstSelected(), col=6).GetText()
+        self.logger.debug("Search item append song %s", song)
+        self.mpd.append_song(song)
+    def on_menu_search_play_song(self, _event) -> None:
+        """Search play song"""
+        song = self.search_ctrl.GetItem(self.search_ctrl.GetFirstSelected(), col=6).GetText()
+        self.logger.debug("Search item play song %s", song)
+        self.mpd.play_song(song)
+    def on_menu_search_append_album(self, _event) -> None:
+        """Search append album"""
+        album = self.search_ctrl.GetItem(self.search_ctrl.GetFirstSelected(), col=1).GetText()
+        self.logger.debug("Search item append album %s", album)
+        self.mpd.append_album_tag(album)
+    def on_menu_search_play_album(self, _event) -> None:
+        """Search play album"""
+        album = self.search_ctrl.GetItem(self.search_ctrl.GetFirstSelected(), col=1).GetText()
+        self.logger.debug("Search item play album %s", album)
+        self.mpd.play_album_tag(album)
+    def on_menu_search_append_artist(self, _event) -> None:
+        """Search append artist"""
+        artist = self.search_ctrl.GetItem(self.search_ctrl.GetFirstSelected(), col=2).GetText()
+        self.logger.debug("Search item append artist %s", artist)
+        self.mpd.append_artist_tag(artist)
+    def on_menu_search_play_artist(self, _event) -> None:
+        """Search play artist"""
+        artist = self.search_ctrl.GetItem(self.search_ctrl.GetFirstSelected(), col=2).GetText()
+        self.logger.debug("Search item play artist %s", artist)
+        self.mpd.play_artist_tag(artist)
+    def on_menu_search_append_newplaylist(self, _event) -> None:
+        """Search append to new playlist"""
+        song = self.search_ctrl.GetItem(self.search_ctrl.GetFirstSelected(), col=6).GetText()
+        self.logger.debug("Search item append to new playlist %s", song)
+        new = MpdNewPlaylistFrame(
+            song,
+            self,
+            title='New Playlist',
+            size=(320,140))
+        new.Show()
+    def on_menu_search_append_playlist(self, playlist, _event) -> None:
+        """Search append to playlist"""
+        song = self.search_ctrl.GetItem(self.search_ctrl.GetFirstSelected(), col=6).GetText()
+        self.logger.debug("Search item append to playlist %s", song)
         self.append_to_playlist(playlist, song)
 
     def append_to_playlist(self, playlist, file) -> None:
