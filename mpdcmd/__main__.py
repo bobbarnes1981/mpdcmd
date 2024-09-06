@@ -283,7 +283,7 @@ class MpdConnection():
 class MpdController():
     """Provides interface to MPD"""
     # pylint: disable=too-many-public-methods
-    def __init__(self, window: wx.Window, connection_config: dict):
+    def __init__(self, window: wx.Window):
         """Initialise the MpdController"""
         self.window = window
 
@@ -292,7 +292,7 @@ class MpdController():
         self.logger = logging.getLogger(type(self).__name__)
         self.logger.info("Starting %s", type(self).__name__)
 
-        self.connection = MpdConnection(self.window, connection_config)
+        self.connection = None
 
         self.stats = {}
         self.status = {}
@@ -309,7 +309,7 @@ class MpdController():
     def start(self) -> None:
         """Start the background thread"""
         self.logger.info("Starting thread")
-        self.idle_thread = MpdIdleThread(self.window, self.connection)
+        self.idle_thread = MpdIdleThread(self)
         self.idle_thread.start()
 
     def stop(self) -> None:
@@ -755,11 +755,10 @@ class MpdController():
 class MpdIdleThread(threading.Thread):
     """Thread to check the idle updates"""
 
-    def __init__(self, parent: wx.Window, connection: MpdConnection):
+    def __init__(self, controller: MpdController):
         """Initialise the MpdIdleThread"""
         threading.Thread.__init__(self)
-        self.parent = parent
-        self.connection = connection
+        self.controller = controller
 
         self.logger = logging.getLogger(type(self).__name__)
         self.logger.info("Starting %s", type(self).__name__)
@@ -781,7 +780,7 @@ class MpdIdleThread(threading.Thread):
         self.running = True
         while self.running:
             self.logger.debug("tick()")
-            self.connection.execute(self.__idle)
+            self.controller.connection.execute(self.__idle)
     def stop(self) -> None:
         """Stop the thread"""
         self.running = False
@@ -806,43 +805,43 @@ class MpdIdleThread(threading.Thread):
         """Player idle action"""
         # start/stop/seek or changed tags of current song
         self.logger.debug('Player action')
-        wx.PostEvent(self.parent, MpdIdlePlayerEvent())
+        wx.PostEvent(self.controller.window, MpdIdlePlayerEvent())
 
     def __action_mixer(self):
         """Mixer idle action"""
         # volume has been changed
         self.logger.debug('Mixer action')
-        wx.PostEvent(self.parent, MpdIdleMixerEvent())
+        wx.PostEvent(self.controller.window, MpdIdleMixerEvent())
 
     def __action_playlist(self):
         """Playlists idle action"""
         # queue has been modified
         self.logger.debug('Playlist action')
-        wx.PostEvent(self.parent, MpdIdlePlaylistEvent())
+        wx.PostEvent(self.controller.window, MpdIdlePlaylistEvent())
 
     def __action_update(self):
         """Update idle action"""
         # update has started or finished
         self.logger.debug('Update action')
-        wx.PostEvent(self.parent, MpdIdleUpdateEvent())
+        wx.PostEvent(self.controller.window, MpdIdleUpdateEvent())
 
     def __action_database(self):
         """Database idle action"""
         # database was modified
         self.logger.debug('Database action')
-        wx.PostEvent(self.parent, MpdIdleDatabaseEvent())
+        wx.PostEvent(self.controller.window, MpdIdleDatabaseEvent())
 
     def __action_options(self):
         """Options idle action"""
         # option was modified
         self.logger.debug('Options action')
-        wx.PostEvent(self.parent, MpdIdleOptionsEvent())
+        wx.PostEvent(self.controller.window, MpdIdleOptionsEvent())
     
     def __action_stored_playlist(self):
         """Stored playlist idle action"""
         # playlist was stored
         self.logger.debug("Stored playlist action")
-        wx.PostEvent(self.parent, MpdIdleStoredPlaylistEvent())
+        wx.PostEvent(self.controller.window, MpdIdleStoredPlaylistEvent())
 
 class MpdCmdFrame(wx.Frame):
     """The main frame for the MpdCmd application"""
@@ -856,19 +855,14 @@ class MpdCmdFrame(wx.Frame):
         self.logger = logging.getLogger(type(self).__name__)
         self.logger.info("Starting %s", type(self).__name__)
 
-        self.preferences_file = os.path.join(os.path.curdir, 'preferences.json')
-        self.preferences = self.__load_preferences()
+        # init mpd
+        self.mpd = MpdController(self)
 
         self.kbd_thread = None
-        if self.preferences.get('mediakeys', DEFAULT_OPTION_MEDIAKEYS):
-            self.logger.warning("Keyboard listener (pynput) enabled")
-            self.kbd_thread = Listener(on_press=self.__key_press, on_release=None)
-            self.kbd_thread.start()
-
-        # init mpd
-        self.mpd = MpdController(
-            self,
-            self.preferences)
+        
+        self.preferences_file = os.path.join(os.path.curdir, 'preferences.json')
+        self.preferences = self.__load_preferences()
+        self.__process_preferences()
 
         self.Bind(EVT_MPD_CONNECTION, self.on_connection_changed)
         self.Bind(EVT_MPD_STATS, self.on_stats_changed)
@@ -965,8 +959,14 @@ class MpdCmdFrame(wx.Frame):
         self.mpd.start()
         self.timer.Start(1000, wx.TIMER_CONTINUOUS)
 
-        self.logger.info("Refreshing MPD data")
-
+    def __process_preferences(self):
+        if self.kbd_thread:
+            self.kbd_thread.stop()
+        if self.preferences.get('mediakeys', DEFAULT_OPTION_MEDIAKEYS):
+            self.logger.warning("Keyboard listener (pynput) enabled")
+            self.kbd_thread = Listener(on_press=self.__key_press, on_release=None)
+            self.kbd_thread.start()    
+        self.mpd.connection = MpdConnection(self, self.preferences)
         self.refresh()
 
     def __key_press(self, key) -> None:
@@ -985,6 +985,7 @@ class MpdCmdFrame(wx.Frame):
 
     def refresh(self):
         """Refresh"""
+        self.logger.info("Refreshing MPD data")
         self.mpd.refresh_stats()
         self.mpd.refresh_status()
         self.mpd.refresh_albums()
@@ -1007,6 +1008,10 @@ class MpdCmdFrame(wx.Frame):
                 file.write(json.dumps(preferences))
         with open(self.preferences_file, 'r', encoding='utf-8') as f:
             return json.loads(f.read())
+    def __save_preferences(self):
+        """Save preferences"""
+        with open(self.preferences_file, 'w', encoding='utf-8') as f:
+            f.write(json.dumps(self.preferences))
 
     def make_notebook(self, parent) -> wx.Notebook:
         """Make the notebook"""
@@ -1660,7 +1665,11 @@ class MpdCmdFrame(wx.Frame):
             self,
             title='Preferences',
             size=(320,340))
-        preferences.Show()
+        if preferences.ShowModal() == wx.ID_SAVE:
+            self.preferences = preferences.preferences
+            self.__save_preferences()
+            self.__process_preferences()
+
     def on_menu_append(self, _event: wx.CommandEvent) -> None:
         """Append menu selected"""
         self.logger.debug("on_menu_append()")
@@ -1973,8 +1982,8 @@ class MpdSavePlaylistFrame(wx.Frame):
         self.logger.debug("on_cancel()")
         self.Close()
 
-class MpdPreferencesFrame(wx.Frame):
-    """Mpd main window"""
+class MpdPreferencesFrame(wx.Dialog):
+    """Mpd preferences window"""
     # pylint: disable=too-many-instance-attributes
     # pylint: disable=too-many-ancestors
     def __init__(self, preferences, *args, **kw):
@@ -2040,11 +2049,19 @@ class MpdPreferencesFrame(wx.Frame):
     def on_save(self, _event: wx.PyCommandEvent) -> None:
         """On save preferences"""
         self.logger.debug("on_save()")
+        self.preferences.update({'host': self.host_text.Value})
+        self.preferences.update({'port': self.port_text.Value})
+        self.preferences.update({'username': self.username_text.Value})
+        self.preferences.update({'password': self.password_text.Value})
+        self.preferences.update({'notifications': self.notifications_check.Value})
+        self.preferences.update({'mediakeys': self.mediakeys_check.Value})
+        self.preferences.update({'fetchallart': self.fetchallart_check.Value})
+        self.EndModal(wx.ID_SAVE)
 
     def on_cancel(self, _event: wx.PyCommandEvent) -> None:
         """On cancel preferences window"""
         self.logger.debug("on_cancel()")
-        self.Close()
+        self.EndModal(wx.ID_CANCEL)
 
 def main():
     """The main function for MPDCMD"""
