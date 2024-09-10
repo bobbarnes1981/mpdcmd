@@ -1202,13 +1202,12 @@ class MpdCmdFrame(wx.Frame):
         exit_item = file_menu.Append(wx.ID_EXIT)
 
         server_menu = wx.Menu()
-        refresh_item = server_menu.Append(-1, "&Refresh", "Refresh from server")
-        update_item = server_menu.Append(-1, "&Update", "Trigger a server update")
+        refresh_item = server_menu.Append(-1, "&Refresh from server", "Refresh from server")
+        update_item = server_menu.Append(-1, "Trigger a server &Update", "Trigger a server update")
 
         queue_menu = wx.Menu()
-        append_item = queue_menu.Append(-1, "&Append", "Append item to queue")
-        save_item = queue_menu.Append(-1, "&Save as Playlist")
-        clear_item = queue_menu.Append(-1, "&Clear", "Clear queue items")
+        save_item = queue_menu.Append(-1, "&Save queue as playlist", "Save queue as playlist")
+        clear_item = queue_menu.Append(-1, "&Clear queue", "Clear queue")
 
         help_menu = wx.Menu()
         about_item = help_menu.Append(wx.ID_ABOUT)
@@ -1224,7 +1223,6 @@ class MpdCmdFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_menu_exit, exit_item)
         self.Bind(wx.EVT_MENU, self.on_menu_refresh, refresh_item)
         self.Bind(wx.EVT_MENU, self.on_menu_update, update_item)
-        self.Bind(wx.EVT_MENU, self.on_menu_append, append_item)
         self.Bind(wx.EVT_MENU, self.on_menu_save, save_item)
         self.Bind(wx.EVT_MENU, self.on_menu_clear, clear_item)
         self.Bind(wx.EVT_MENU, self.on_menu_about, about_item)
@@ -1670,14 +1668,6 @@ class MpdCmdFrame(wx.Frame):
             self.__save_preferences()
             self.__process_preferences()
 
-    def on_menu_append(self, _event: wx.CommandEvent) -> None:
-        """Append menu selected"""
-        self.logger.debug("on_menu_append()")
-        add = MpdAppendFrame(
-            self,
-            title='Append',
-            size=(320,140))
-        add.Show()
     def on_menu_save(self, _event: wx.CommandEvent) -> None:
         """Save queue as playlist"""
         self.logger.debug("on_menu_save()")
@@ -1899,44 +1889,6 @@ class MpdNewPlaylistFrame(wx.Frame):
         """On ok"""
         self.logger.debug("on_ok()")
         self.Parent.append_to_playlist(self.name_text.Value, self.file)
-        self.Close()
-
-    def on_cancel(self, _event: wx.PyCommandEvent) -> None:
-        """On cancel"""
-        self.logger.debug("on_cancel()")
-        self.Close()
-
-class MpdAppendFrame(wx.Frame):
-    """Append window"""
-    def __init__(self, *args, **kw):
-        wx.Frame.__init__(self, *args, **kw)
-
-        self.logger = logging.getLogger(type(self).__name__)
-        self.logger.info("Starting %s", type(self).__name__)
-        
-        self.panel = wx.Panel(self)
-
-        self.sizer = wx.BoxSizer(wx.VERTICAL)
-        self.panel.SetSizer(self.sizer)
-
-        append_label = wx.StaticText(self.panel, label='Append')
-        self.sizer.Add(append_label, 0, wx.EXPAND|wx.ALL, 1)
-
-        self.append_text = wx.TextCtrl(self.panel, value='')
-        self.sizer.Add(self.append_text, 0, wx.EXPAND|wx.ALL, 1)
-
-        cancel_button = wx.Button(self.panel, label="Cancel")
-        self.Bind(wx.EVT_BUTTON, self.on_cancel, cancel_button)
-        self.sizer.Add(cancel_button, 0, wx.EXPAND|wx.ALL, 1)
-
-        append_button = wx.Button(self.panel, label="Append")
-        self.Bind(wx.EVT_BUTTON, self.on_append, append_button)
-        self.sizer.Add(append_button, 0, wx.EXPAND|wx.ALL, 1)
-
-    def on_append(self, _event: wx.PyCommandEvent) -> None:
-        """On append"""
-        self.logger.debug("on_append()")
-        self.Parent.mpd.play_song(self.append_text.Value)
         self.Close()
 
     def on_cancel(self, _event: wx.PyCommandEvent) -> None:
