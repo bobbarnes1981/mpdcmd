@@ -221,6 +221,7 @@ class MpdIdleStoredPlaylistEvent(wx.PyCommandEvent):
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_IDLE_STOREDPLAYLIST, -1)
 
 def albums_from_listallinfo(cli: musicpd.MPDClient) -> list:
+    """Get albums from the list all info request"""
     songs_result = cli.listallinfo()
     album_dict = {}
     for song in songs_result:
@@ -394,8 +395,7 @@ class MpdController():
                     song,
                     False)
             except Exception:
-                # ignore error and carry on
-                pass
+                raise
         self.logger.debug("Fetch all art - end")
 
     def refresh_queue(self) -> None:
