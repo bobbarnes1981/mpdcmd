@@ -1369,7 +1369,10 @@ class MpdCmdFrame(wx.Frame):
         append_menu.AppendSeparator()
         for playlist in self.playlists:
             pl_item = append_menu.Append(-1, playlist['playlist'])
-            self.Bind(wx.EVT_MENU, lambda event: self.on_menu_songs_append_playlist(playlist['playlist'], event), pl_item)
+            self.Bind(
+                wx.EVT_MENU,
+                lambda event: self.on_menu_songs_append_playlist(playlist['playlist'], event),
+                pl_item)
         menu.AppendSubMenu(append_menu, "Append To Playlist")
 
         self.PopupMenu(menu, event.GetPoint())
@@ -1399,7 +1402,10 @@ class MpdCmdFrame(wx.Frame):
         append_menu.AppendSeparator()
         for playlist in self.playlists:
             pl_item = append_menu.Append(-1, playlist['playlist'])
-            self.Bind(wx.EVT_MENU, lambda event: self.on_menu_search_append_playlist(playlist['playlist'], event), pl_item)
+            self.Bind(
+                wx.EVT_MENU,
+                lambda event: self.on_menu_search_append_playlist(playlist['playlist'], event),
+                pl_item)
         menu.AppendSubMenu(append_menu, "Append To Playlist")
 
         self.PopupMenu(menu, event.GetPoint())
@@ -1856,12 +1862,16 @@ class MpdCmdFrame(wx.Frame):
 
     def on_menu_playlist_load(self, _event: wx.CommandEvent) -> None:
         """Menu Playlist Load"""
-        playlist = self.playlists_ctrl.GetItem(self.playlists_ctrl.GetFirstSelected(), col=0).GetText()
+        playlist = self.playlists_ctrl.GetItem(
+            self.playlists_ctrl.GetFirstSelected(),
+            col=0).GetText()
         self.logger.info("Playlist load %s", playlist)
         self.mpd.load(playlist)
     def on_menu_playlist_remove(self, _event: wx.CommandEvent) -> None:
         """Menu Playlist Remove"""
-        playlist = self.playlists_ctrl.GetItem(self.playlists_ctrl.GetFirstSelected(), col=0).GetText()
+        playlist = self.playlists_ctrl.GetItem(
+            self.playlists_ctrl.GetFirstSelected(),
+            col=0).GetText()
         self.logger.info("Playlist remove %s", playlist)
         self.mpd.remove(playlist)
 
