@@ -937,6 +937,10 @@ class MpdCmdFrame(wx.Frame):
         self.current_song_time = wx.StaticText(self.l_panel, label="00:00/00:00")
         self.l_sizer.Add(self.current_song_time, 0, wx.EXPAND|wx.LEFT|wx.RIGHT, 8)
 
+        if SHOW_POSITION_SLIDER:
+            self.current_song_pos = wx.Slider(self.l_panel, minValue=0, maxValue=1)
+            self.l_sizer.Add(self.current_song_pos, 0, wx.EXPAND|wx.ALL, 1)
+
         tr = self.make_transport(self.l_panel)
         self.l_sizer.Add(tr, 0, wx.ALL|wx.ALL, 1)
 
@@ -954,7 +958,7 @@ class MpdCmdFrame(wx.Frame):
 
         self.update_status()
         self.update_statusbar_text()
-        self.update_current_song_time_text()
+        self.update_current_song_time()
 
         self.mpd.start()
         self.timer.Start(1000, wx.TIMER_CONTINUOUS)
@@ -1236,7 +1240,7 @@ class MpdCmdFrame(wx.Frame):
         self.logger.debug("on_tick")
         if self.playing:
             self.elapsed += 1
-        self.update_current_song_time_text()
+        self.update_current_song_time()
 
     def on_connection_changed(self, event: MpdConnectionEvent) -> None:
         """MPD connection changed"""
@@ -1532,7 +1536,7 @@ class MpdCmdFrame(wx.Frame):
         """Update song time"""
         self.elapsed = float(self.status.get('elapsed', '0'))
         self.duration = float(self.status.get('duration', '0'))
-        self.update_current_song_time_text()
+        self.update_current_song_time()
     def update_current_song(self) -> None:
         """Update current song"""
         for s in range(0, self.queue_ctrl.GetItemCount()):
@@ -1606,11 +1610,14 @@ class MpdCmdFrame(wx.Frame):
             self.preferences.get('host', ''),
             self.preferences.get('port', ''),
             self.connection_status))
-    def update_current_song_time_text(self):
+    def update_current_song_time(self):
         """Update current song time text"""
         elapsed = self.seconds_to_time(self.elapsed)
         duration = self.seconds_to_time(self.duration)
         self.current_song_time.SetLabel(f"{elapsed}/{duration}")
+        if SHOW_POSITION_SLIDER:
+            self.current_song_pos.SetMax(int(self.duration))
+            self.current_song_pos.SetValue(int(self.elapsed))
 
     def on_play_toggle(self, _event: wx.CommandEvent) -> None:
         """Play/pause clicked"""
