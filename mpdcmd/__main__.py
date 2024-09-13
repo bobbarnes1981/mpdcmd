@@ -237,6 +237,9 @@ def albums_from_listallinfo(cli: musicpd.MPDClient) -> list:
         album_dict[song['album']]['duration']+=float(song['duration'])
     return list(album_dict.values())
 
+class MpdUnhandledAlbumArt(Exception):
+    """Exception for unhandled album art image magic number"""
+
 class MpdConnection():
     """Handles executing requests to MPD"""
     # pylint: disable=too-few-public-methods
@@ -389,13 +392,11 @@ class MpdController():
         for song in songs:
             if self.art_enabled is False:
                 break
-            try:
-                self.__refresh_albumart(
-                    cli,
-                    song,
-                    False)
-            except Exception:
-                raise
+            # TODO: deal with exceptions here
+            self.__refresh_albumart(
+                cli,
+                song,
+                False)
         self.logger.debug("Fetch all art - end")
 
     def refresh_queue(self) -> None:
@@ -726,7 +727,7 @@ class MpdController():
             return ('jpg', wx.BITMAP_TYPE_JPEG)
         if data.startswith(bytes.fromhex('89504e47')): # png
             return ('png', wx.BITMAP_TYPE_PNG)
-        raise Exception(f'Unhandled file type {data[:5]}')
+        raise MpdUnhandledAlbumArt(f'Unhandled file type {data[:5]}')
 
     def __create_art_folder(self, folder) -> None:
         """Create albumart folder"""
@@ -1441,7 +1442,6 @@ class MpdCmdFrame(wx.Frame):
             artist = song.get('artist', None)
             title = song.get('title', None)
             album = song.get('album', None)
-            name = song.get('name', None)
             self.queue_ctrl.Append([
                 prefix,
                 song['id'],
@@ -1570,9 +1570,7 @@ class MpdCmdFrame(wx.Frame):
                 album))
         if name:
             # music stream (title can be empty)
-            self.current_song_text.SetLabel("%s (%s)" % (
-                title,
-                name))
+            self.current_song_text.SetLabel(f"{title} ({name})")
         self.update_statusbar_text()
     def show_notification(self) -> None:
         """Show notification"""
@@ -1582,24 +1580,18 @@ class MpdCmdFrame(wx.Frame):
             title = self.current_song.get('title', None)
             album = self.current_song.get('album', None)
             name = self.current_song.get('name', None)
-            if self.notification != None:
+            if self.notification is not None:
                 self.notification.Close()
                 self.notification = None
             if track and artist and title and album:
                 # music file
                 # pylint: disable=consider-using-f-string
                 self.notification = wx.adv.NotificationMessage(
-                    "MPDCMD", "%s. %s - %s\r\n%s" % (
-                        self.current_song.get('track', '?'),
-                        self.current_song.get('artist', '?'),
-                        self.current_song.get('title', '?'),
-                        self.current_song.get('album', '?')))
+                    "MPDCMD", f"{track}. {artist} - {title}\r\n{album}")
             if name:
                 # music stream (title can be empty)
                 self.notification = wx.adv.NotificationMessage(
-                    "MPDCMD", "%s\r\n%s" % (
-                        self.current_song.get('name', '?'),
-                        self.current_song.get('title', '?')))
+                    "MPDCMD", f"{name}\r\n{title}")
             if self.notification:
                 bitmap = self.mpd.get_albumart(self.current_song)
                 self.notification.SetIcon(wx.Icon(bitmap))
@@ -1665,7 +1657,7 @@ class MpdCmdFrame(wx.Frame):
         """Consume checkbox changed"""
         consume = self.consume_check.GetValue()
         self.mpd.set_consume(consume)
-    def on_search(self, event) -> None:
+    def on_search(self, _event) -> None:
         """Do a search"""
         query = self.search_box.Value
         self.mpd.search(query)
@@ -1858,6 +1850,7 @@ class MpdCmdFrame(wx.Frame):
         self.append_to_playlist(playlist, song)
 
     def append_to_playlist(self, playlist, file) -> None:
+        """Append the file to the playlist"""
         self.mpd.playlist_add(playlist, file)
 
     def on_menu_playlist_load(self, _event: wx.CommandEvent) -> None:
@@ -1877,6 +1870,7 @@ class MpdCmdFrame(wx.Frame):
 
 class MpdNewPlaylistFrame(wx.Frame):
     """New playlist window"""
+    # pylint: disable=too-many-ancestors
     def __init__(self, file :str, *args, **kw):
         wx.Frame.__init__(self, *args, **kw)
 
@@ -1917,6 +1911,7 @@ class MpdNewPlaylistFrame(wx.Frame):
 
 class MpdSavePlaylistFrame(wx.Frame):
     """Save playlist window"""
+    # pylint: disable=too-many-ancestors
     def __init__(self, *args, **kw):
         wx.Frame.__init__(self, *args, **kw)
 
@@ -1958,7 +1953,7 @@ class MpdPreferencesFrame(wx.Dialog):
     # pylint: disable=too-many-instance-attributes
     # pylint: disable=too-many-ancestors
     def __init__(self, preferences, *args, **kw):
-        wx.Frame.__init__(self, *args, **kw)
+        wx.Dialog.__init__(self, *args, **kw)
 
         self.logger = logging.getLogger(type(self).__name__)
         self.logger.info("Starting %s", type(self).__name__)
