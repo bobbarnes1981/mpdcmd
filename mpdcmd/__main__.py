@@ -13,6 +13,8 @@ DEFAULT_OPTION_NOTIFICATIONS = False
 DEFAULT_OPTION_MEDIAKEYS = False
 DEFAULT_OPTION_FETCHALLART = False
 
+SHOW_POSITION_SLIDER = False
+
 logging.basicConfig(
     level=logging.WARN,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -76,7 +78,7 @@ class MpdSongsEvent(wx.PyCommandEvent):
     def get_value(self) -> list:
         """Get the value"""
         return self._value
-    
+
 mcEVT_MPD_SEARCH = wx.NewEventType()
 EVT_MPD_SEARCH = wx.PyEventBinder(mcEVT_MPD_SEARCH, 1)
 class MpdSearchEvent(wx.PyCommandEvent):
@@ -208,7 +210,7 @@ class MpdIdleOptionsEvent(wx.PyCommandEvent):
     def __init__(self):
         """Initialise the event"""
         wx.PyCommandEvent.__init__(self, mcEVT_MPD_IDLE_OPTIONS, -1)
-        
+
 mcEVT_MPD_IDLE_STOREDPLAYLIST = wx.NewEventType()
 EVT_MPD_IDLE_STOREDPLAYLIST = wx.PyEventBinder(mcEVT_MPD_IDLE_STOREDPLAYLIST, 1)
 class MpdIdleStoredPlaylistEvent(wx.PyCommandEvent):
@@ -836,7 +838,7 @@ class MpdIdleThread(threading.Thread):
         # option was modified
         self.logger.debug('Options action')
         wx.PostEvent(self.controller.window, MpdIdleOptionsEvent())
-    
+
     def __action_stored_playlist(self):
         """Stored playlist idle action"""
         # playlist was stored
@@ -859,7 +861,7 @@ class MpdCmdFrame(wx.Frame):
         self.mpd = MpdController(self)
 
         self.kbd_thread = None
-        
+
         self.preferences_file = os.path.join(os.path.curdir, 'preferences.json')
         self.preferences = self.__load_preferences()
         self.__process_preferences()
@@ -969,7 +971,7 @@ class MpdCmdFrame(wx.Frame):
         if self.preferences.get('mediakeys', DEFAULT_OPTION_MEDIAKEYS):
             self.logger.warning("Keyboard listener (pynput) enabled")
             self.kbd_thread = Listener(on_press=self.__key_press, on_release=None)
-            self.kbd_thread.start()    
+            self.kbd_thread.start()
         self.mpd.connection = MpdConnection(self, self.preferences)
         self.refresh()
 
@@ -1369,7 +1371,7 @@ class MpdCmdFrame(wx.Frame):
             pl_item = append_menu.Append(-1, playlist['playlist'])
             self.Bind(wx.EVT_MENU, lambda event: self.on_menu_songs_append_playlist(playlist['playlist'], event), pl_item)
         menu.AppendSubMenu(append_menu, "Append To Playlist")
-        
+
         self.PopupMenu(menu, event.GetPoint())
     def search_context_menu(self, event):
         """Search context menu"""
@@ -1399,7 +1401,7 @@ class MpdCmdFrame(wx.Frame):
             pl_item = append_menu.Append(-1, playlist['playlist'])
             self.Bind(wx.EVT_MENU, lambda event: self.on_menu_search_append_playlist(playlist['playlist'], event), pl_item)
         menu.AppendSubMenu(append_menu, "Append To Playlist")
-        
+
         self.PopupMenu(menu, event.GetPoint())
 
     def on_current_song_changed(self, event: MpdCurrentSongEvent) -> None:
@@ -1851,7 +1853,7 @@ class MpdCmdFrame(wx.Frame):
 
     def append_to_playlist(self, playlist, file) -> None:
         self.mpd.playlist_add(playlist, file)
-        
+
     def on_menu_playlist_load(self, _event: wx.CommandEvent) -> None:
         """Menu Playlist Load"""
         playlist = self.playlists_ctrl.GetItem(self.playlists_ctrl.GetFirstSelected(), col=0).GetText()
@@ -1910,7 +1912,7 @@ class MpdSavePlaylistFrame(wx.Frame):
 
         self.logger = logging.getLogger(type(self).__name__)
         self.logger.info("Starting %s", type(self).__name__)
-        
+
         self.panel = wx.Panel(self)
 
         self.sizer = wx.BoxSizer(wx.VERTICAL)
